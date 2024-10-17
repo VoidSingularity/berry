@@ -1,0 +1,13 @@
+{
+    "asm": {
+        "pkg": "bluet/berry/asm/",
+        "output": "asm.jar"
+    },
+    "analyzer": {
+        "dep": [
+            "asm"
+        ],
+        "pkg": "bluet/berry/berrytool/",
+        "output": "analyzer.jar"
+    }
+}

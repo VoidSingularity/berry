@@ -1,0 +1,9 @@
+libs/
+build/
+.vscode/
+output/
+run/
+
+# WIP
+project.py
+project.json
