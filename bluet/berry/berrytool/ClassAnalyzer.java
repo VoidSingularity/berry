@@ -11,6 +11,8 @@ import java.util.jar.JarFile;
 import bluet.berry.asm.ClassFile;
 
 public class ClassAnalyzer {
+    // For debug use
+    public static final String s = "aeogi";
     public static void main (String[] args) throws IOException {
         for (String arg : args) {
             if (arg.endsWith (".jar")) {

@@ -41,14 +41,17 @@ public class ClassFile {
         public int size ();
         public int getName ();
         default void debug (ClassFile file, int tabSpaces) {
-            while (tabSpaces--!=0) System.out.print (' ');
+            outputSpaces (tabSpaces);
             System.out.println ("No debug info now!");
         }
     }
     public static interface AttributeProvider {
         public Attribute newAttribute (ClassFile file, int name, int len, DataInputStream stream) throws IOException;
     }
-    private static final Map <String, AttributeProvider> providers = Map.of ("Code", CodeAttribute::new);
+    private static final Map <String, AttributeProvider> providers = Map.of (
+        "ConstantValue", ConstantValue::new,
+        "Code", CodeAttribute::new
+    );
     public Attribute newAttribute (int name, int len, DataInputStream stream) throws IOException {
         AttributeProvider provider = providers.get (if_str (name));
         if (provider == null) return new AnyAttribute (name, len, stream);
@@ -75,7 +78,7 @@ public class ClassFile {
             int k;
             for (k=0; k<info.length; k++) {
                 if (k % 12 == 0) {
-                    System.out.println ();
+                    if (k > 0) System.out.println ();
                     outputSpaces (tab);
                 }
                 System.out.print (hex (info [k]));
@@ -135,7 +138,6 @@ public class ClassFile {
         public int getName () { return this.name; }
         public void debug (ClassFile file, int tab) {
             int k, l;
-            System.out.println ();
             outputSpaces (tab);
             System.out.println (String.format ("Max stack: %d, Max locals: %d", maxStack, maxLocals));
             outputSpaces (tab);
@@ -159,9 +161,28 @@ public class ClassFile {
             for (l=0; l<subAttributes.length; l++) {
                 Attribute a = subAttributes [l];
                 outputSpaces (tab+1);
-                System.out.print (String.format ("Sub-attribute %d: name %s", l + 1, file.if_str (a.getName ())));
+                System.out.println (String.format ("Sub-attribute %d: name %s", l + 1, file.if_str (a.getName ())));
                 a.debug (file, tab+2);
             }
+        }
+    }
+    public static class ConstantValue implements Attribute {
+        public int index, name;
+        public int getIndex () { return this.index; }
+        public int getName () { return this.name; }
+        public ConstantValue (ClassFile file, int name, int len, DataInputStream input) throws IOException {
+            this.name = name;
+            this.index = input.readUnsignedShort ();
+        }
+        public int size () { return 8; }
+        public void write (DataOutputStream stream) throws IOException {
+            stream.writeShort (name);
+            stream.writeInt (2);
+            stream.writeShort (index);
+        }
+        public void debug (ClassFile file, int tab) {
+            outputSpaces (tab);
+            System.out.println (String.format ("Constant ID: %d", index));
         }
     }
     public static class FieldOrMethod {
@@ -407,7 +428,7 @@ public class ClassFile {
             int j;
             for (j=0; j<field.attributes.length; j++) {
                 Attribute attr = field.attributes [j];
-                System.out.print (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
+                System.out.println (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
@@ -420,14 +441,14 @@ public class ClassFile {
             int j;
             for (j=0; j<method.attributes.length; j++) {
                 Attribute attr = method.attributes [j];
-                System.out.print (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
+                System.out.println (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
         System.out.println (String.format ("Attributes: %d", attributes.length));
         for (i=0; i<attributes.length; i++) {
             Attribute attr = attributes [i];
-            System.out.print (String.format (" Attribute %d: name %s", i+1, if_str (attr.getName ())));
+            System.out.println (String.format (" Attribute %d: name %s", i+1, if_str (attr.getName ())));
             attr.debug (this, 2);
         }
     }
