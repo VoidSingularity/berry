@@ -2,8 +2,9 @@
 
 import json, sys, os
 
-pkgf = open ('packages.json')
-packages = json.load (pkgf)
+pkgf = open ('.json')
+jsonfile = json.load (pkgf)
+packages = jsonfile ['packages']
 pkgf.close ()
 
 def javac (dn, opt):
