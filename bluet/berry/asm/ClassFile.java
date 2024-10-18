@@ -50,10 +50,11 @@ public class ClassFile {
     }
     private static final Map <String, AttributeProvider> providers = Map.of (
         "ConstantValue", ConstantValue::new,
-        "Code", CodeAttribute::new
+        "Code", CodeAttribute::new,
+        "Exceptions", ExceptionsAttribute::new
     );
     public Attribute newAttribute (int name, int len, DataInputStream stream) throws IOException {
-        AttributeProvider provider = providers.get (if_str (name));
+        AttributeProvider provider = providers.get (ifStr (name));
         if (provider == null) return new AnyAttribute (name, len, stream);
         else return provider.newAttribute (this, name, len, stream);
     }
@@ -161,14 +162,13 @@ public class ClassFile {
             for (l=0; l<subAttributes.length; l++) {
                 Attribute a = subAttributes [l];
                 outputSpaces (tab+1);
-                System.out.println (String.format ("Sub-attribute %d: name %s", l + 1, file.if_str (a.getName ())));
+                System.out.println (String.format ("Sub-attribute %d: name %s", l + 1, file.ifStr (a.getName ())));
                 a.debug (file, tab+2);
             }
         }
     }
     public static class ConstantValue implements Attribute {
         public int index, name;
-        public int getIndex () { return this.index; }
         public int getName () { return this.name; }
         public ConstantValue (ClassFile file, int name, int len, DataInputStream input) throws IOException {
             this.name = name;
@@ -183,6 +183,35 @@ public class ClassFile {
         public void debug (ClassFile file, int tab) {
             outputSpaces (tab);
             System.out.println (String.format ("Constant ID: %d", index));
+        }
+    }
+    // TODO: StackMapTable
+    public static class ExceptionsAttribute implements Attribute {
+        public int[] table;
+        public int name;
+        public int getName () { return this.name; }
+        public ExceptionsAttribute (ClassFile file, int name, int len, DataInputStream input) throws IOException {
+            this.name = name;
+            table = new int [input.readUnsignedShort ()];
+            int i;
+            for (i=0; i<table.length; i++) table [i] = input.readUnsignedShort ();
+        }
+        public int size () { return 8 + 2 * table.length; }
+        public void write (DataOutputStream stream) throws IOException {
+            stream.writeShort (name);
+            stream.writeInt (table.length * 2 + 2);
+            stream.writeShort (table.length);
+            int i;
+            for (i=0; i<table.length; i++) stream.writeShort (table [i]);
+        }
+        public void debug (ClassFile file, int tab) {
+            outputSpaces (tab);
+            System.out.println (String.format ("Exceptions: %d", table.length));
+            int i;
+            for (i=0; i<table.length; i++) {
+                outputSpaces (tab+1);
+                System.out.println (String.format ("Exception %d: %s", i+1, file.ifStr (getShortFromBytes (file.constants.get (table [i]) .data))));
+            }
         }
     }
     public static class FieldOrMethod {
@@ -212,8 +241,6 @@ public class ClassFile {
     public FieldOrMethod[] fields;
     public FieldOrMethod[] methods;
     public Attribute[] attributes;
-    // Legacy code, now I have java.io.DataInputStream and DataOutputStream :)
-    // But still for debug use
     private static int wrap (byte b) {
         int r = b;
         if (r < 0) r += 256;
@@ -223,7 +250,12 @@ public class ClassFile {
     // The debug code is incomplete because there aren't too many bugs for now :3
     public static final boolean debug = false;
     // Another debug switch
-    public static final boolean verify = false;
+    public static final boolean verify;
+    static {
+        String v = System.getProperty ("berry.asm.verifyClassFiles");
+        if ("true".equals (v)) verify = true;
+        else verify = false;
+    }
     public ClassFile (byte[] file) throws IOException {
         constants = new Stack <> ();
         ByteArrayInputStream in = new ByteArrayInputStream (file);
@@ -353,12 +385,12 @@ public class ClassFile {
         out.close ();
         return ret;
     }
-    public String if_str (int index) {
+    public String ifStr (int index) {
         Constant constant = constants.get (index);
         if (constant.type != 1) return null;
         return new String (constant.data);
     }
-    private String display_str (String str) {
+    public static String displayStr (String str) {
         byte[] d = str.getBytes () .clone ();
         int i;
         for (i=0; i<d.length; i++) {
@@ -366,6 +398,10 @@ public class ClassFile {
         }
         return new String (d);
     }
+    public static int getShortFromBytes (byte[] bytes, int start) {
+        return wrap (bytes [start]) * 256 + wrap (bytes [start+1]);
+    }
+    public static int getShortFromBytes (byte[] bytes) { return getShortFromBytes (bytes, 0); }
     private static String hex (int b) {
         String x = "0123456789ABCDEF";
         b = (b + 256) % 256;
@@ -387,26 +423,26 @@ public class ClassFile {
             if (constant.type == 0) {
                 System.out.println ("<unavailable>");
             } else if (constant.type == 1) {
-                System.out.println (String.format ("UTF8 info %s", display_str (if_str (i))));
+                System.out.println (String.format ("UTF8 info %s", displayStr (ifStr (i))));
             } else if (constant.type == 7) {
-                System.out.println (String.format ("Class reference %s", if_str (wrap (constant.data [0]) * 256 + wrap (constant.data [1]))));
+                System.out.println (String.format ("Class reference %s", ifStr (getShortFromBytes (constant.data))));
             } else if (constant.type == 8) {
-                System.out.println (String.format ("String %s", display_str (if_str (wrap (constant.data [0]) * 256 + wrap (constant.data [1])))));
+                System.out.println (String.format ("String %s", displayStr (ifStr (getShortFromBytes (constant.data)))));
             } else if (constant.type >= 9 && constant.type <= 11) {
                 int cls_ndex, nnt_ndex;
-                cls_ndex = wrap (constant.data [0]) * 256 + wrap (constant.data [1]);
-                nnt_ndex = wrap (constant.data [2]) * 256 + wrap (constant.data [3]);
+                cls_ndex = getShortFromBytes (constant.data);
+                nnt_ndex = getShortFromBytes (constant.data, 2);
                 Constant nnt = constants.get (nnt_ndex);
                 int name, desc;
-                name = wrap (nnt.data [0]) * 256 + wrap (nnt.data [1]);
-                desc = wrap (nnt.data [2]) * 256 + wrap (nnt.data [3]);
+                name = getShortFromBytes (nnt.data);
+                desc = getShortFromBytes (nnt.data, 2);
                 Constant cls = constants.get (cls_ndex);
-                cls_ndex = wrap (cls.data [0]) * 256 + wrap (cls.data [1]);
+                cls_ndex = getShortFromBytes (cls.data);
                 String prefix;
                 if (constant.type == 9) prefix = "Field";
                 else if (constant.type == 10) prefix = "Class method";
                 else prefix = "Interface method";
-                System.out.println (String.format ( "%s reference name %s type %s of class %s", prefix, if_str (name), if_str (desc), if_str (cls_ndex)));
+                System.out.println (String.format ( "%s reference name %s type %s of class %s", prefix, ifStr (name), ifStr (desc), ifStr (cls_ndex)));
             } else {
                 String out = String.format ("%s ", hex (constant.type));
                 for (byte b : constant.data) out += hex (b);
@@ -423,12 +459,12 @@ public class ClassFile {
         for (i=0; i<fields.length; i++) {
             FieldOrMethod field = fields [i];
             System.out.println (String.format (" Field %d:", i + 1));
-            System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (field.accessFlags), if_str (field.name), if_str (field.descriptor)));
+            System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (field.accessFlags), ifStr (field.name), ifStr (field.descriptor)));
             System.out.println (String.format (" Attributes: %d", field.attributes.length));
             int j;
             for (j=0; j<field.attributes.length; j++) {
                 Attribute attr = field.attributes [j];
-                System.out.println (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
+                System.out.println (String.format ("  Attribute %d: name %s", j + 1, ifStr (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
@@ -436,19 +472,19 @@ public class ClassFile {
         for (i=0; i<methods.length; i++) {
             FieldOrMethod method = methods [i];
             System.out.println (String.format (" Method %d:", i + 1));
-            System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (method.accessFlags), if_str (method.name), if_str (method.descriptor)));
+            System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (method.accessFlags), ifStr (method.name), ifStr (method.descriptor)));
             System.out.println (String.format (" Attributes: %d", method.attributes.length));
             int j;
             for (j=0; j<method.attributes.length; j++) {
                 Attribute attr = method.attributes [j];
-                System.out.println (String.format ("  Attribute %d: name %s", j + 1, if_str (attr.getName ())));
+                System.out.println (String.format ("  Attribute %d: name %s", j + 1, ifStr (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
         System.out.println (String.format ("Attributes: %d", attributes.length));
         for (i=0; i<attributes.length; i++) {
             Attribute attr = attributes [i];
-            System.out.println (String.format (" Attribute %d: name %s", i+1, if_str (attr.getName ())));
+            System.out.println (String.format (" Attribute %d: name %s", i+1, ifStr (attr.getName ())));
             attr.debug (this, 2);
         }
     }
