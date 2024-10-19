@@ -1,8 +1,6 @@
-libs/
 build/
 .vscode/
 output/
 run/
-
-# WIP
-project.py
+.cache/
+__pycache__/

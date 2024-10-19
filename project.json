@@ -11,5 +11,24 @@
             "pkg": "bluet/berry/berrytool/",
             "output": "analyzer.jar"
         }
+    },
+    "runs": {
+        "download_manifest": {
+            "function": "download_manifest",
+            "repeat_everytime": false
+        },
+        "download_minecraft": {
+            "dep": [
+                "download_manifest"
+            ],
+            "function": "download_minecraft",
+            "repeat_everytime": false
+        },
+        "build_all": {
+            "dep": [
+                "asm",
+                "analyzer"
+            ]
+        }
     }
 }
