@@ -84,7 +84,7 @@ def handle (name):
 def main ():
     for a in sys.argv [1:]:
         if a in packages:
-            build (packages [a])
+            build (a, packages [a])
         elif a in runs:
             run (a, runs [a], True)
         print (f'Task {a} completed by main()')
