@@ -60,7 +60,7 @@ def download_minecraft (projectjson, properties):
     download_resource (cldl ['url'], 'client_official.jar', False, cldl ['sha1'])
     # Install BML
     cljson ['arguments'] ['game'] .insert (0, cljson ['mainClass'])
-    cljson ['arguments'] ['jvm'] .append ('-javaagent:output/agent.jar')
+    cljson ['arguments'] ['jvm'] .append ('-javaagent:../../output/agent.jar')
     cljson ['mainClass'] = 'bluet.berry.loader.BerryLoaderMain'
     f = open ('.cache/client.json', 'w')
     json.dump (cljson, f)
@@ -151,17 +151,17 @@ def run_minecraft (projectjson, properties):
     cljson = json.load (cl)
     cl.close ()
     ld = os.listdir ('.cache/libs/')
-    cps = os.pathsep.join ([f'.cache/libs/{i}' for i in ld] + ['.cache/client.jar', 'output/asm.jar', 'output/loader.jar'])
+    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../../output/asm.jar', '../../output/loader.jar'])
     if not os.path.exists ('.cache/natives'): os.mkdir ('.cache/natives')
     vars = {
         'classpath': cps,
-        'natives_directory': '.cache/natives/',
+        'natives_directory': '../natives/',
         'launcher_name': '"BML Test"',
         'launcher_version': '1.0.0',
         'auth_player_name': properties.get ('player_name', 'Dev'),
         'version_name': properties.get ('version_name', properties.get ('minecraft_version', 'unknown')),
-        'game_directory': '.cache/game/',
-        'assets_root': '.cache/assets/',
+        'game_directory': './',
+        'assets_root': '../assets/',
         'assets_index_name': 'index',
         'auth_uuid': '01234567-89ab-cdef-0123-456789abcdef',
         'auth_access_token': 'aa',
@@ -182,4 +182,6 @@ def run_minecraft (projectjson, properties):
     for gamearg in args ['game']:
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
+    os.chdir ('.cache/game/')
     os.system (f'java {" ".join (jvmargs)} {cljson ["mainClass"]} {" ".join (gameargs)}')
+    os.chdir ('../../')
