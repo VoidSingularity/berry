@@ -10,6 +10,22 @@
             ],
             "pkg": "bluet/berry/berrytool/",
             "output": "analyzer.jar"
+        },
+        "loader": {
+            "dep": [
+                "asm"
+            ],
+            "pkg": "bluet/berry/loader/",
+            "output": "loader.jar"
+        },
+        "agent": {
+            "dep": [
+                "asm",
+                "loader"
+            ],
+            "pkg": "bluet/berry/BerryAgent.java",
+            "manifest": "berryagent.mf",
+            "output": "agent.jar"
         }
     },
     "runs": {
@@ -17,9 +33,18 @@
             "function": "download_manifest",
             "repeat_everytime": false
         },
+        "build_all": {
+            "dep": [
+                "asm",
+                "loader",
+                "agent"
+            ],
+            "repeat_everytime": true
+        },
         "download_minecraft": {
             "dep": [
-                "download_manifest"
+                "download_manifest",
+                "build_all"
             ],
             "function": "download_minecraft",
             "repeat_everytime": false
@@ -31,6 +56,22 @@
             "function": "deobfuscate",
             "repeat_everytime": false
         },
+        "download_dependencies": {
+            "dep": [
+                "download_minecraft"
+            ],
+            "function": "download_dependencies",
+            "repeat_everytime": false
+        },
+        "setup_vscode": {
+            "dep": [
+                "download_minecraft",
+                "deobfuscate",
+                "download_dependencies"
+            ],
+            "function": "setup_vscode",
+            "repeat_everytime": false
+        },
         "download_assets": {
             "dep": [
                 "download_minecraft"
@@ -38,11 +79,16 @@
             "function": "download_assets",
             "repeat_everytime": false
         },
-        "build_all": {
+        "run_minecraft": {
             "dep": [
-                "asm",
-                "analyzer"
-            ]
+                "build_all",
+                "download_minecraft",
+                "deobfuscate",
+                "download_dependencies",
+                "download_assets"
+            ],
+            "function": "run_minecraft",
+            "repeat_everytime": false
         }
     }
 }
