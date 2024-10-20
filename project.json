@@ -24,6 +24,20 @@
             "function": "download_minecraft",
             "repeat_everytime": false
         },
+        "deobfuscate": {
+            "dep": [
+                "download_minecraft"
+            ],
+            "function": "deobfuscate",
+            "repeat_everytime": false
+        },
+        "download_assets": {
+            "dep": [
+                "download_minecraft"
+            ],
+            "function": "download_assets",
+            "repeat_everytime": false
+        },
         "build_all": {
             "dep": [
                 "asm",

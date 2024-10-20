@@ -79,13 +79,17 @@ def run (name, task, force=False):
 def handle (name):
     if name in packages: build (name, packages [name])
     elif name in runs: run (name, runs [name])
+    print (f'Task {name} completed by handle()')
 
-if __name__ == '__main__':
-    for a in sys.argv:
+def main ():
+    for a in sys.argv [1:]:
         if a in packages:
             build (packages [a])
         elif a in runs:
             run (a, runs [a], True)
+        print (f'Task {a} completed by main()')
     f = open ('.cache/status.json', 'w')
     json.dump (list (status), f)
     f.close ()
+
+if __name__ == '__main__': main ()
