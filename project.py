@@ -9,7 +9,7 @@ def verify_sha1 (local, sha1):
 
 def download_resource (url, local, reuse=True, sha1=None):
     if os.path.exists ('.cache/' + local) and reuse:
-        if sha1 is not None and not verify_sha1 (local, sha1): download_resource (url, local, False, sha1)
+        if sha1 is not None and not verify_sha1 (local, sha1): return download_resource (url, local, False, sha1)
         return False
     rmt = urllib.request.urlopen (url)
     lcl = open ('.cache/' + local, 'wb')
@@ -182,6 +182,9 @@ def run_minecraft (projectjson, properties):
     for gamearg in args ['game']:
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
+    # Windows support
+    if os.path.exists ('.cache/game/mods/api.jar'): os.remove ('.cache/game/mods/api.jar')
+    os.rename ('output/api.jar', '.cache/game/mods/api.jar')
     os.chdir ('.cache/game/')
     os.system (f'java {" ".join (jvmargs)} {cljson ["mainClass"]} {" ".join (gameargs)}')
     os.chdir ('../../')

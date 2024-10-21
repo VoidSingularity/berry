@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BerryLoaderMain {
-    public static void main (String[] args) {
+    public static void main (String[] args) { new BerryLoaderMain () .mian (args); }
+    public void mian (String[] args) {
         int i;
         String moddir = null;
         for (i=2; i<args.length; i++)
@@ -24,21 +25,41 @@ public class BerryLoaderMain {
         File dir = new File (moddir);
         var mods = dir.list ();
         List <URL> cps = new ArrayList <> ();
+        List <String> bmc = new ArrayList <> ();
         for (var mod : mods) {
             try {
                 File file = new File (moddir + mod);
                 JarContainer container = new JarContainer (file);
                 JarContainer.containers.put (mod, container);
                 cps.add (file.toURI () .toURL ());
+                var jar = container.file ();
+                var mf = jar.getManifest ();
+                if (mf == null) continue;
+                var attr = mf.getMainAttributes () .getValue ("Berry-Base-Mod");
+                if (attr != null) bmc.add (attr);
             } catch (IOException e) {}
         }
         URL[] urls = new URL [cps.size ()];
         for (i=0; i<urls.length; i++) urls [i] = cps.get (i);
-        URLClassLoader loader = new URLClassLoader (urls, ClassLoader.getSystemClassLoader ());
+        URLClassLoader loader = new URLClassLoader (urls, this.getClass () .getClassLoader ());
         String[] argv = new String [args.length - 1];
         for (i=1; i<args.length; i++) argv [i-1] = args [i];
         Thread thread = new Thread (
             () -> {
+                for (String cls : bmc) {
+                    try {
+                        Class <?> basemod = loader.loadClass (cls);
+                        MethodHandle handle = MethodHandles.lookup () .findStatic (basemod, "initialize", MethodType.methodType (Void.TYPE)) .asFixedArity ();
+                        handle.invoke ();
+                        System.out.println (String.format ("[INFO] Successfully initialized base mod @ %s", cls));
+                    } catch (ClassNotFoundException e) {
+                        System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
+                    } catch (NoSuchMethodException e) {}
+                    catch (IllegalAccessException e) {}
+                    catch (Throwable throwable) {
+                        throw new RuntimeException (throwable);
+                    }
+                }
                 try {
                     Class <?> main = Class.forName (args [0]);
                     MethodHandle handle = MethodHandles.lookup () .findStatic (main, "main", MethodType.methodType (Void.TYPE, String[].class)) .asFixedArity ();

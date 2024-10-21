@@ -4,3 +4,4 @@ output/
 run/
 .cache/
 __pycache__/
+*.class

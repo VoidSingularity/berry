@@ -26,6 +26,15 @@
             "pkg": "bluet/berry/BerryAgent.java",
             "manifest": "berryagent.mf",
             "output": "agent.jar"
+        },
+        "api": {
+            "dep": [
+                "asm",
+                "loader"
+            ],
+            "pkg": "bluet/berry/api/",
+            "manifest": "api.mf",
+            "output": "api.jar"
         }
     },
     "runs": {
@@ -37,7 +46,8 @@
             "dep": [
                 "asm",
                 "loader",
-                "agent"
+                "agent",
+                "api"
             ],
             "repeat_everytime": true
         },

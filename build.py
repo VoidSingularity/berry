@@ -37,11 +37,11 @@ def build (name, pkg):
     if deps is not None:
         for dep in deps:
             build (dep, packages [dep])
-            opt += f':output/{dep}.jar'
+            opt += f'{os.pathsep}output/{dep}.jar'
     cps = pkg.get ("cps")
     if cps is not None:
         for cp in cps:
-            opt += f':libs/{cp}.jar'
+            opt += f'{os.pathsep}libs/{cp}.jar'
     clean_build ()
     if os.path.exists (f'output/{pkg ["output"]}'): os.remove (f'output/{pkg ["output"]}')
     pkgpth = pkg ['pkg']

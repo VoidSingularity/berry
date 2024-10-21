@@ -1,0 +1,2 @@
+Manifest-Version: 1.0
+Berry-Base-Mod: bluet.berry.api.BerryDefaultBaseMod
