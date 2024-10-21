@@ -5,3 +5,5 @@ run/
 .cache/
 __pycache__/
 *.class
+*.iml
+.idea/
