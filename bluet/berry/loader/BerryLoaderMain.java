@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,14 +22,13 @@ public class BerryLoaderMain {
         if (moddir == null) moddir = "./mods/";
         File dir = new File (moddir);
         var mods = dir.list ();
-        List <URL> cps = new ArrayList <> ();
         List <String> bmc = new ArrayList <> ();
         for (var mod : mods) {
             try {
                 File file = new File (moddir + mod);
                 JarContainer container = new JarContainer (file);
                 JarContainer.containers.put (mod, container);
-                cps.add (file.toURI () .toURL ());
+                BerryClassTransformer.instance () .instrumentation () .appendToSystemClassLoaderSearch (container.file ());
                 var jar = container.file ();
                 var mf = jar.getManifest ();
                 if (mf == null) continue;
@@ -39,19 +36,15 @@ public class BerryLoaderMain {
                 if (attr != null) bmc.add (attr);
             } catch (IOException e) {}
         }
-        URL[] urls = new URL [cps.size ()];
-        for (i=0; i<urls.length; i++) urls [i] = cps.get (i);
-        URLClassLoader loader = new URLClassLoader (urls, this.getClass () .getClassLoader ());
         String[] argv = new String [args.length - 1];
         for (i=1; i<args.length; i++) argv [i-1] = args [i];
         Thread thread = new Thread (
             () -> {
                 for (String cls : bmc) {
                     try {
-                        Class <?> basemod = loader.loadClass (cls);
+                        Class <?> basemod = Class.forName (cls);
                         MethodHandle handle = MethodHandles.lookup () .findStatic (basemod, "initialize", MethodType.methodType (Void.TYPE)) .asFixedArity ();
                         handle.invoke ();
-                        System.out.println (String.format ("[INFO] Successfully initialized base mod @ %s", cls));
                     } catch (ClassNotFoundException e) {
                         System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
                     } catch (NoSuchMethodException e) {}
@@ -75,7 +68,6 @@ public class BerryLoaderMain {
                 }
             }
         );
-        thread.setContextClassLoader (loader);
-        thread.start ();
+        thread.run ();
     }
 }

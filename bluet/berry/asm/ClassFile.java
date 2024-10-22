@@ -8,7 +8,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 
 public class ClassFile {
@@ -36,7 +39,7 @@ public class ClassFile {
             return new ExceptionTable (s, e, h, c);
         }
     }
-    public static interface Attribute {
+    public static interface ClassAttribute {
         public void write (DataOutputStream stream) throws IOException;
         public int size ();
         public int getName ();
@@ -46,25 +49,29 @@ public class ClassFile {
         }
     }
     public static interface AttributeProvider {
-        public Attribute newAttribute (ClassFile file, int name, int len, DataInputStream stream) throws IOException;
+        public ClassAttribute newAttribute (ClassFile file, int name, int len, DataInputStream stream) throws IOException;
     }
     private static final Map <String, AttributeProvider> providers = Map.of (
         "ConstantValue", ConstantValue::new,
         "Code", CodeAttribute::new,
         "Exceptions", ExceptionsAttribute::new
     );
-    public Attribute newAttribute (int name, int len, DataInputStream stream) throws IOException {
+    public ClassAttribute newAttribute (int name, int len, DataInputStream stream) throws IOException {
         AttributeProvider provider = providers.get (ifStr (name));
         if (provider == null) return new AnyAttribute (name, len, stream);
         else return provider.newAttribute (this, name, len, stream);
     }
     public static void outputSpaces (int tabSpaces) { for (int j=0; j<tabSpaces; j++) System.out.print (' '); }
-    public static class AnyAttribute implements Attribute {
+    public static class AnyAttribute implements ClassAttribute {
         public int name;
         public byte[] info;
         public AnyAttribute (int name, int len, DataInputStream input) throws IOException {
             this.name = name;
             this.info = input.readNBytes (len);
+        }
+        public AnyAttribute (int name, byte[] info) {
+            this.name = name;
+            this.info = info;
         }
         public void write (DataOutputStream stream) throws IOException {
             stream.writeShort (name);
@@ -87,11 +94,11 @@ public class ClassFile {
             System.out.println ();
         }
     }
-    public static class CodeAttribute implements Attribute {
+    public static class CodeAttribute implements ClassAttribute {
         public int name, maxStack, maxLocals;
         public byte[] code;
         public ExceptionTable[] exceptionTables;
-        public Attribute[] subAttributes;
+        public List <ClassAttribute> subAttributes;
         public CodeAttribute (ClassFile file, int name, int len, DataInputStream input) throws IOException {
             this.name = name; // We just throw the argument len away
             int i, l;
@@ -102,18 +109,32 @@ public class ClassFile {
             exceptionTables = new ExceptionTable [l];
             for (i=0; i<l; i++) exceptionTables [i] = ExceptionTable.read (input);
             l = input.readUnsignedShort ();
-            subAttributes = new Attribute [l];
+            subAttributes = new ArrayList <> ();
             for (i=0; i<l; i++) {
                 int n = 0, m = 0;
                 n = input.readUnsignedShort ();
                 m = input.readInt ();
-                subAttributes [i] = file.newAttribute (n, m, input);
+                subAttributes.add (file.newAttribute (n, m, input));
+            }
+        }
+        public CodeAttribute (ClassFile file, int name, CodeAttribute origin, byte[] code, Map <String, ClassAttribute> mods, Set <String> removes) {
+            this.name = name;
+            maxStack = origin.maxStack;
+            maxLocals = origin.maxLocals;
+            if (code == null) this.code = origin.code;
+            else this.code = code;
+            exceptionTables = origin.exceptionTables;
+            subAttributes = new ArrayList <> ();
+            for (var a : origin.subAttributes) {
+                var s = file.ifStr (a.getName ());
+                if (mods.containsKey (s)) subAttributes.add (mods.get (s));
+                else if (!removes.contains (s)) subAttributes.add (a);
             }
         }
         @Override
         public int size () {
             int length = 18 + code.length + exceptionTables.length * 8;
-            for (Attribute attr : subAttributes) length += attr.size ();
+            for (ClassAttribute attr : subAttributes) length += attr.size ();
             return length;
         }
         @Override
@@ -133,8 +154,8 @@ public class ClassFile {
                 stream.writeShort (exc.handler);
                 stream.writeShort (exc.catchType);
             }
-            stream.writeShort (subAttributes.length);
-            for (Attribute attr : subAttributes) attr.write (stream);
+            stream.writeShort (subAttributes.size());
+            for (ClassAttribute attr : subAttributes) attr.write (stream);
         }
         public int getName () { return this.name; }
         public void debug (ClassFile file, int tab) {
@@ -158,16 +179,16 @@ public class ClassFile {
                 System.out.println (String.format ("%d %d %d %d", t.start, t.end, t.handler, t.catchType));
             }
             outputSpaces (tab);
-            System.out.println (String.format ("Sub-attributes: %d", subAttributes.length));
-            for (l=0; l<subAttributes.length; l++) {
-                Attribute a = subAttributes [l];
+            System.out.println (String.format ("Sub-attributes: %d", subAttributes.size ()));
+            for (l=0; l<subAttributes.size(); l++) {
+                ClassAttribute a = subAttributes.get (l);
                 outputSpaces (tab+1);
                 System.out.println (String.format ("Sub-attribute %d: name %s", l + 1, file.ifStr (a.getName ())));
                 a.debug (file, tab+2);
             }
         }
     }
-    public static class ConstantValue implements Attribute {
+    public static class ConstantValue implements ClassAttribute {
         public int index, name;
         public int getName () { return this.name; }
         public ConstantValue (ClassFile file, int name, int len, DataInputStream input) throws IOException {
@@ -185,8 +206,7 @@ public class ClassFile {
             System.out.println (String.format ("Constant ID: %d", index));
         }
     }
-    // TODO: StackMapTable
-    public static class ExceptionsAttribute implements Attribute {
+    public static class ExceptionsAttribute implements ClassAttribute {
         public int[] table;
         public int name;
         public int getName () { return this.name; }
@@ -218,8 +238,8 @@ public class ClassFile {
         public int accessFlags;
         public int name;
         public int descriptor;
-        public Attribute[] attributes;
-        public FieldOrMethod (int accessFlags, int name, int descriptor, Attribute[] attributes) {
+        public List <ClassAttribute> attributes;
+        public FieldOrMethod (int accessFlags, int name, int descriptor, List <ClassAttribute> attributes) {
             this.accessFlags = accessFlags;
             this.name = name;
             this.descriptor = descriptor;
@@ -229,18 +249,18 @@ public class ClassFile {
             stream.writeShort (accessFlags);
             stream.writeShort (name);
             stream.writeShort (descriptor);
-            stream.writeShort (attributes.length);
-            for (Attribute attr : attributes) attr.write (stream);
+            stream.writeShort (attributes.size ());
+            for (ClassAttribute attr : attributes) attr.write (stream);
         }
         public int length () {
             int r = 8;
-            for (Attribute attr : attributes) r += attr.size ();
+            for (ClassAttribute attr : attributes) r += attr.size ();
             return r;
         }
     }
-    public FieldOrMethod[] fields;
-    public FieldOrMethod[] methods;
-    public Attribute[] attributes;
+    public List <FieldOrMethod> fields;
+    public List <FieldOrMethod> methods;
+    public List <ClassAttribute> attributes;
     private static int wrap (byte b) {
         int r = b;
         if (r < 0) r += 256;
@@ -293,46 +313,46 @@ public class ClassFile {
         interfaces = new int [cnt];
         for (i=0; i<cnt; i++) interfaces [i] = stream.readUnsignedShort ();
         cnt = stream.readUnsignedShort ();
-        fields = new FieldOrMethod [cnt];
+        fields = new ArrayList <> ();
         for (i=0; i<cnt; i++) {
             int a, n, d, s, j;
             a = stream.readUnsignedShort ();
             n = stream.readUnsignedShort ();
             d = stream.readUnsignedShort ();
             s = stream.readUnsignedShort ();
-            Attribute[] attrs = new Attribute [s];
+            List <ClassAttribute> attrs = new ArrayList <> ();
             for (j=0; j<s; j++) {
                 int name, len;
                 name = stream.readUnsignedShort ();
                 len = stream.readInt ();
-                attrs [j] = newAttribute (name, len, stream);
+                attrs.add (newAttribute (name, len, stream));
             }
-            fields [i] = new FieldOrMethod (a, n, d, attrs);
+            fields.add (new FieldOrMethod (a, n, d, attrs));
         }
         cnt = stream.readUnsignedShort ();
-        methods = new FieldOrMethod [cnt];
+        methods = new ArrayList <> ();
         for (i=0; i<cnt; i++) {
             int a, n, d, s, j;
             a = stream.readUnsignedShort ();
             n = stream.readUnsignedShort ();
             d = stream.readUnsignedShort ();
             s = stream.readUnsignedShort ();
-            Attribute[] attrs = new Attribute [s];
+            List <ClassAttribute> attrs = new ArrayList <> ();
             for (j=0; j<s; j++) {
                 int name, len;
                 name = stream.readUnsignedShort ();
                 len = stream.readInt ();
-                attrs [j] = newAttribute (name, len, stream);
+                attrs.add (newAttribute (name, len, stream));
             }
-            methods [i] = new FieldOrMethod (a, n, d, attrs);
+            methods.add (new FieldOrMethod (a, n, d, attrs));
         }
         cnt = stream.readUnsignedShort ();
-        attributes = new Attribute [cnt];
+        attributes = new ArrayList <> ();
         for (i=0; i<cnt; i++) {
             int name, len;
             name = stream.readUnsignedShort ();
             len = stream.readInt ();
-            attributes [i] = newAttribute (name, len, stream);
+            attributes.add (newAttribute (name, len, stream));
         }
         stream.close ();
         in.close ();
@@ -355,7 +375,7 @@ public class ClassFile {
         length += interfaces.length * 2;
         for (FieldOrMethod field : fields) length += field.length ();
         for (FieldOrMethod method : methods) length += method.length ();
-        for (Attribute attr : attributes) length += attr.size ();
+        for (ClassAttribute attr : attributes) length += attr.size ();
         ByteArrayOutputStream out = new ByteArrayOutputStream (length);
         DataOutputStream stream = new DataOutputStream (out);
         stream.writeInt (magicnum);
@@ -374,12 +394,12 @@ public class ClassFile {
         stream.writeShort (superClass);
         stream.writeShort (interfaces.length);
         for (i=0; i<interfaces.length; i++) stream.writeShort (interfaces [i]);
-        stream.writeShort (fields.length);
+        stream.writeShort (fields.size ());
         for (FieldOrMethod f : fields) f.write (stream);
-        stream.writeShort (methods.length);
+        stream.writeShort (methods.size ());
         for (FieldOrMethod f : methods) f.write (stream);
-        stream.writeShort (attributes.length);
-        for (Attribute attr : attributes) attr.write (stream);
+        stream.writeShort (attributes.size ());
+        for (ClassAttribute attr : attributes) attr.write (stream);
         var ret = out.toByteArray ();
         stream.close ();
         out.close ();
@@ -402,6 +422,11 @@ public class ClassFile {
         return wrap (bytes [start]) * 256 + wrap (bytes [start+1]);
     }
     public static int getShortFromBytes (byte[] bytes) { return getShortFromBytes (bytes, 0); }
+    public static void setShortToBytes (byte[] bytes, int value, int start) {
+        bytes [start] = (byte) (value / 256);
+        bytes [start+1] = (byte) (value % 256);
+    }
+    public static void setShortToBytes (byte[] bytes, int value) { setShortToBytes (bytes, value, 0); }
     private static String hex (int b) {
         String x = "0123456789ABCDEF";
         b = (b + 256) % 256;
@@ -410,6 +435,64 @@ public class ClassFile {
     }
     private static String hex2b (int i) {
         return hex ((byte) (i / 256)) + hex ((byte) (i % 256));
+    }
+    public int getMethod (NameAndType descriptor) {
+        int i;
+        for (i=0; i<methods.size(); i++) {
+            var method = methods.get (i);
+            if (descriptor.name () .equals (ifStr (method.name))
+                && descriptor.type () .equals (ifStr (method.descriptor)))
+            return i;
+        }
+        return -1;
+    }
+    public int newUTF8 (String info) {
+        int i;
+        for (i=1; i<constants.size(); i++) {
+            var constant = constants.get (i);
+            if (constant.type == 1) {
+                if (new String (constant.data) .equals (info)) return i;
+            }
+        }
+        Constant c = new Constant (1, info.getBytes ());
+        constants.add (c);
+        return constants.size () - 1;
+    }
+    public int newClassDescriptor (String clazz) {
+        int i;
+        for (i=1; i<constants.size(); i++) {
+            var constant = constants.get (i);
+            if (constant.type == 7) {
+                int j = getShortFromBytes (constant.data);
+                if (clazz.equals (ifStr (j))) return i;
+            } 
+        }
+        Constant c = new Constant (7, new byte [2]);
+        setShortToBytes (c.data, newUTF8 (clazz));
+        constants.add (c);
+        return constants.size () - 1;
+    }
+    public int newNameAndType (NameAndType descriptor) {
+        int i;
+        for (i=1; i<constants.size(); i++) {
+            var constant = constants.get (i);
+            if (constant.type == 12 && descriptor.name () .equals (ifStr (getShortFromBytes (constant.data)))
+                && descriptor.type () .equals (ifStr (getShortFromBytes (constant.data, 2)))) return i;
+        }
+        Constant c = new Constant (12, new byte [4]);
+        setShortToBytes (c.data, newUTF8 (descriptor.name ()));
+        setShortToBytes (c.data, newUTF8 (descriptor.type ()), 2);
+        constants.add (c);
+        return constants.size () - 1;
+    }
+    public int newMethodDescriptor (TypedDescriptor descriptor) {
+        int cd = newClassDescriptor (descriptor.type ()), nt = newNameAndType (descriptor.descriptor ());
+        // TODO: optimization
+        Constant c = new Constant (descriptor.methtype (), new byte [4]);
+        setShortToBytes (c.data, cd);
+        setShortToBytes (c.data, nt, 2);
+        constants.add (c);
+        return constants.size () - 1;
     }
     //WIP
     public void debug () {
@@ -455,35 +538,35 @@ public class ClassFile {
         for (i=0; i<interfaces.length; i++) {
             System.out.println (String.format ("Interface %d: %d", i + 1, interfaces [i]));
         }
-        System.out.println (String.format ("Fields: %d", fields.length));
-        for (i=0; i<fields.length; i++) {
-            FieldOrMethod field = fields [i];
+        System.out.println (String.format ("Fields: %d", fields.size ()));
+        for (i=0; i<fields.size(); i++) {
+            FieldOrMethod field = fields.get (i);
             System.out.println (String.format (" Field %d:", i + 1));
             System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (field.accessFlags), ifStr (field.name), ifStr (field.descriptor)));
-            System.out.println (String.format (" Attributes: %d", field.attributes.length));
+            System.out.println (String.format (" Attributes: %d", field.attributes.size ()));
             int j;
-            for (j=0; j<field.attributes.length; j++) {
-                Attribute attr = field.attributes [j];
+            for (j=0; j<field.attributes.size(); j++) {
+                ClassAttribute attr = field.attributes.get (j);
                 System.out.println (String.format ("  Attribute %d: name %s", j + 1, ifStr (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
-        System.out.println (String.format ("Methods: %d", methods.length));
-        for (i=0; i<methods.length; i++) {
-            FieldOrMethod method = methods [i];
+        System.out.println (String.format ("Methods: %d", methods.size ()));
+        for (i=0; i<methods.size(); i++) {
+            FieldOrMethod method = methods.get (i);
             System.out.println (String.format (" Method %d:", i + 1));
             System.out.println (String.format (" Access flags: %s; Name: %s; Descriptor: %s", hex2b (method.accessFlags), ifStr (method.name), ifStr (method.descriptor)));
-            System.out.println (String.format (" Attributes: %d", method.attributes.length));
+            System.out.println (String.format (" Attributes: %d", method.attributes.size ()));
             int j;
-            for (j=0; j<method.attributes.length; j++) {
-                Attribute attr = method.attributes [j];
+            for (j=0; j<method.attributes.size(); j++) {
+                ClassAttribute attr = method.attributes.get (j);
                 System.out.println (String.format ("  Attribute %d: name %s", j + 1, ifStr (attr.getName ())));
                 attr.debug (this, 3);
             }
         }
-        System.out.println (String.format ("Attributes: %d", attributes.length));
-        for (i=0; i<attributes.length; i++) {
-            Attribute attr = attributes [i];
+        System.out.println (String.format ("Attributes: %d", attributes.size ()));
+        for (i=0; i<attributes.size(); i++) {
+            ClassAttribute attr = attributes.get (i);
             System.out.println (String.format (" Attribute %d: name %s", i+1, ifStr (attr.getName ())));
             attr.debug (this, 2);
         }

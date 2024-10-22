@@ -32,6 +32,10 @@
                 "asm",
                 "loader"
             ],
+            "cps": [
+                ".cache/libs/",
+                ".cache/client.jar"
+            ],
             "pkg": "bluet/berry/api/",
             "manifest": "api.mf",
             "output": "api.jar"

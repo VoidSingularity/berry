@@ -11,7 +11,7 @@ import bluet.berry.asm.ClassFile;
 
 public class BerryClassTransformer implements ClassFileTransformer {
     public static interface ByteCodeTransformer {
-        public void transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, ClassFile file, boolean retransform);
+        public void transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, ClassFile file) throws IOException;
     }
     public final List <ByteCodeTransformer> all = new ArrayList <> ();
     private static BerryClassTransformer instance;
@@ -26,10 +26,10 @@ public class BerryClassTransformer implements ClassFileTransformer {
         instance = this;
         this.inst = inst;
     }
-    public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer, boolean retransform) {
+    public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
         try {
             ClassFile file = new ClassFile (buffer);
-            for (var consumer : all) consumer.transform (loader, name, clazz, domain, file, retransform);
+            for (var consumer : all) consumer.transform (loader, name, clazz, domain, file);
             return file.get ();
         } catch (IOException e) {
             return null;

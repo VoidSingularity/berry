@@ -41,7 +41,10 @@ def build (name, pkg):
     cps = pkg.get ("cps")
     if cps is not None:
         for cp in cps:
-            opt += f'{os.pathsep}libs/{cp}.jar'
+            if os.path.isdir (cp):
+                for l in os.listdir (cp):
+                    opt += f'{os.pathsep}{cp}{l}'
+            else: opt += f'{os.pathsep}{cp}'
     clean_build ()
     if os.path.exists (f'output/{pkg ["output"]}'): os.remove (f'output/{pkg ["output"]}')
     pkgpth = pkg ['pkg']
