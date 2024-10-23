@@ -1,4 +1,4 @@
-package bluet.berry.api;
+package berry.api;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -10,15 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import bluet.berry.asm.ClassFile;
-import bluet.berry.asm.TypedDescriptor;
-import bluet.berry.asm.ClassFile.AnyAttribute;
-import bluet.berry.asm.ClassFile.ClassAttribute;
-import bluet.berry.asm.ClassFile.CodeAttribute;
-import bluet.berry.asm.ClassFile.FieldOrMethod;
-import bluet.berry.loader.BerryClassTransformer;
-import bluet.berry.asm.NameAndType;
-import bluet.berry.asm.Type;
+import berry.asm.ClassFile;
+import berry.asm.TypedDescriptor;
+import berry.asm.ClassFile.AnyAttribute;
+import berry.asm.ClassFile.ClassAttribute;
+import berry.asm.ClassFile.CodeAttribute;
+import berry.asm.ClassFile.FieldOrMethod;
+import berry.loader.BerryClassTransformer;
+import berry.asm.NameAndType;
+import berry.asm.Type;
 
 public class BerryDefaultBaseMod {
     public static void initialize () {

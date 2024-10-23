@@ -1,4 +1,4 @@
-package bluet.berry.asm;
+package berry.asm;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

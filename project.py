@@ -61,7 +61,7 @@ def download_minecraft (projectjson, properties):
     # Install BML
     cljson ['arguments'] ['game'] .insert (0, cljson ['mainClass'])
     cljson ['arguments'] ['jvm'] .append ('-javaagent:../../output/agent.jar')
-    cljson ['mainClass'] = 'bluet.berry.loader.BerryLoaderMain'
+    cljson ['mainClass'] = 'berry.loader.BerryLoaderMain'
     f = open ('.cache/client.json', 'w')
     json.dump (cljson, f)
     f.close ()
@@ -69,7 +69,7 @@ def download_minecraft (projectjson, properties):
     if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
 
 # Deobfuscate Minecraft
-# Deobfuscation is possible with bluet.berry.asm.ClassFile, but I'm just being lazy here
+# Deobfuscation is possible with berry.asm.ClassFile, but I'm just being lazy here
 import mapping
 def deobfuscate (projectjson, properties):
     cl = open ('.cache/client.json')

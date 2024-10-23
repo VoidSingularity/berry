@@ -1,4 +1,4 @@
-package bluet.berry.loader;
+package berry.loader;
 
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -7,7 +7,7 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
-import bluet.berry.asm.ClassFile;
+import berry.asm.ClassFile;
 
 public class BerryClassTransformer implements ClassFileTransformer {
     public static interface ByteCodeTransformer {

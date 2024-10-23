@@ -1,21 +1,21 @@
 {
     "packages": {
         "asm": {
-            "pkg": "bluet/berry/asm/",
+            "pkg": "berry/asm/",
             "output": "asm.jar"
         },
         "analyzer": {
             "dep": [
                 "asm"
             ],
-            "pkg": "bluet/berry/berrytool/",
+            "pkg": "berry/berrytool/",
             "output": "analyzer.jar"
         },
         "loader": {
             "dep": [
                 "asm"
             ],
-            "pkg": "bluet/berry/loader/",
+            "pkg": "berry/loader/",
             "output": "loader.jar"
         },
         "agent": {
@@ -23,7 +23,7 @@
                 "asm",
                 "loader"
             ],
-            "pkg": "bluet/berry/BerryAgent.java",
+            "pkg": "berry/BerryAgent.java",
             "manifest": "berryagent.mf",
             "output": "agent.jar"
         },
@@ -36,7 +36,7 @@
                 ".cache/libs/",
                 ".cache/client.jar"
             ],
-            "pkg": "bluet/berry/api/",
+            "pkg": "berry/api/",
             "manifest": "api.mf",
             "output": "api.jar"
         }

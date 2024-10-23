@@ -1,4 +1,4 @@
-package bluet.berry.loader;
+package berry.loader;
 
 import java.io.File;
 import java.io.IOException;

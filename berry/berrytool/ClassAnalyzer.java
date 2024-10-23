@@ -1,4 +1,4 @@
-package bluet.berry.berrytool;
+package berry.berrytool;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,7 +8,7 @@ import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import bluet.berry.asm.ClassFile;
+import berry.asm.ClassFile;
 
 public class ClassAnalyzer {
     // For debug use

@@ -1,4 +1,4 @@
-package bluet.berry.asm;
+package berry.asm;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
