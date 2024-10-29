@@ -1,44 +1,12 @@
 {
     "packages": {
-        "asm": {
-            "pkg": "berry/asm/",
-            "output": "asm.jar"
-        },
-        "analyzer": {
-            "dep": [
-                "asm"
-            ],
-            "pkg": "berry/berrytool/",
-            "output": "analyzer.jar"
-        },
         "loader": {
-            "dep": [
-                "asm"
-            ],
-            "pkg": "berry/loader/",
-            "output": "loader.jar"
+            "source": "loader"
         },
         "agent": {
-            "dep": [
-                "asm",
-                "loader"
-            ],
-            "pkg": "berry/BerryAgent.java",
-            "manifest": "berryagent.mf",
-            "output": "agent.jar"
-        },
-        "api": {
-            "dep": [
-                "asm",
-                "loader"
-            ],
-            "cps": [
-                ".cache/libs/",
-                ".cache/client.jar"
-            ],
-            "pkg": "berry/api/",
-            "manifest": "api.mf",
-            "output": "api.jar"
+            "dep": [ "loader" ],
+            "source": "agent",
+            "manifest": "berryagent"
         }
     },
     "runs": {
@@ -48,10 +16,8 @@
         },
         "build_all": {
             "dep": [
-                "asm",
                 "loader",
-                "agent",
-                "api"
+                "agent"
             ],
             "repeat_everytime": true
         },

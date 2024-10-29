@@ -7,11 +7,9 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
 
-import berry.asm.ClassFile;
-
 public class BerryClassTransformer implements ClassFileTransformer {
     public static interface ByteCodeTransformer {
-        public void transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, ClassFile file) throws IOException;
+        public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] code) throws IOException;
     }
     public final List <ByteCodeTransformer> all = new ArrayList <> ();
     private static BerryClassTransformer instance;
@@ -28,9 +26,8 @@ public class BerryClassTransformer implements ClassFileTransformer {
     }
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
         try {
-            ClassFile file = new ClassFile (buffer);
-            for (var consumer : all) consumer.transform (loader, name, clazz, domain, file);
-            return file.get ();
+            for (var consumer : all) buffer = consumer.transform (loader, name, clazz, domain, buffer);
+            return buffer;
         } catch (IOException e) {
             return null;
         }

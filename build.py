@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import json, os, shutil, sys, time
+import json, os, shutil, sys, zipfile
 
 pkgf = open ('project.json')
 jsonfile = json.load (pkgf)
@@ -15,10 +15,14 @@ if not os.path.exists ('build'): os.mkdir ('build')
 if not os.path.exists ('output'): os.mkdir ('output')
 if not os.path.exists ('.cache'): os.mkdir ('.cache')
 
+def syswrap (cmd):
+    print ('$', cmd)
+    os.system (cmd)
+
 def javac (dn, opt):
     for fn in os.listdir (dn):
         if os.path.isfile (dn + fn):
-            os.system (f'javac {opt} -d build {dn}{fn}')
+            syswrap (f'javac {opt} -d build {dn}{fn}')
         else: javac (dn + fn + os.sep, opt)
 
 def clean_build ():
@@ -30,6 +34,14 @@ def clean_build ():
             shutil.rmtree ('build/' + fn)
 
 built = set ()
+
+def lsrecursive (root, d = ''):
+    ret = [d]
+    for f in os.listdir (root + d):
+        if os.path.isdir (root + d + f):
+            ret += lsrecursive (root, d + f + os.sep)
+    return ret
+
 def build (name, pkg):
     if name in built: return
     deps = pkg.get ("dep")
@@ -45,18 +57,36 @@ def build (name, pkg):
                 for l in os.listdir (cp):
                     opt += f'{os.pathsep}{cp}{l}'
             else: opt += f'{os.pathsep}{cp}'
-    clean_build ()
-    if os.path.exists (f'output/{pkg ["output"]}'): os.remove (f'output/{pkg ["output"]}')
-    pkgpth = pkg ['pkg']
-    if os.path.isfile (pkgpth): os.system (f'javac {opt} -d build {pkgpth}')
-    else: javac (pkgpth, opt)
-    cmd = 'jar'
-    if pkg.get ('manifest') is None: cmd += ' -Mcvf'
-    else: cmd += f" -mcvf manifest/{pkg ['manifest']}"
-    cmd += f" output/{pkg ['output']} -C build "
-    if os.path.isfile (pkgpth): cmd += '/'.join (pkgpth.split ('/') [:-1]) + '/'
-    else: cmd += pkgpth
-    os.system (cmd)
+    srcpth = f'src/{pkg ["source"]}/'
+    lr = lsrecursive (srcpth)
+    lo = []
+    for l in lr:
+        b = os.listdir (srcpth + l)
+        for c in b:
+            if c.endswith ('.java'):
+                lo.append (srcpth + l + c)
+    syswrap (f'javac {opt} -s {srcpth} -d build {" ".join (lo)}')
+    # Some sort of issue related to the jar command
+    zip = zipfile.ZipFile (f'output/{name}.jar', 'w')
+    for l in lsrecursive (f'src/{pkg ["source"]}/'):
+        b = os.listdir ('build/' + l)
+        for c in b:
+            if c.endswith ('.class'):
+                f = open (f'build/{l}{c}', 'rb')
+                g = zip.open (l + c, 'w')
+                g.write (f.read ())
+                f.close ()
+                g.close ()
+                print (f"Added file {l}{c} to jar file {name}.jar")
+    mf = pkg.get ("manifest")
+    if mf is not None:
+        f = open (f'manifest/{mf}.mf', 'rb')
+        g = zip.open ('META-INF/MANIFEST.MF', 'w')
+        g.write (f.read ())
+        f.close ()
+        g.close ()
+        print (f"Added manifest {mf}.mf to jar file {name}.jar")
+    zip.close ()
     built.add (name)
 
 import project

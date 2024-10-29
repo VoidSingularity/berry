@@ -1,5 +1,9 @@
 import hashlib, json, os, platform, re, urllib.request
 
+def syswrap (cmd):
+    print ('$', cmd)
+    os.system (cmd)
+
 def verify_sha1 (local, sha1):
     sha = hashlib.sha1 ()
     lcl = open ('.cache/' + local, 'rb')
@@ -52,19 +56,12 @@ def download_minecraft (projectjson, properties):
             break
     else:
         raise Exception (f"Cannot find version {version} in version manifest. Try run build.py download_manifest again.")
-    download_resource (vjson ['url'], 'client_official.json', False, vjson ['sha1'])
-    cl = open ('.cache/client_official.json')
+    download_resource (vjson ['url'], 'client.json', True, vjson ['sha1'])
+    cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
     cldl = cljson ['downloads'] ['client']
-    download_resource (cldl ['url'], 'client_official.jar', False, cldl ['sha1'])
-    # Install BML
-    cljson ['arguments'] ['game'] .insert (0, cljson ['mainClass'])
-    cljson ['arguments'] ['jvm'] .append ('-javaagent:../../output/agent.jar')
-    cljson ['mainClass'] = 'berry.loader.BerryLoaderMain'
-    f = open ('.cache/client.json', 'w')
-    json.dump (cljson, f)
-    f.close ()
+    download_resource (cldl ['url'], 'client_official.jar', True, cldl ['sha1'])
     if not os.path.exists ('.cache/game'): os.mkdir ('.cache/game')
     if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
 
@@ -76,9 +73,9 @@ def deobfuscate (projectjson, properties):
     cljson = json.load (cl)
     cl.close ()
     mpdl = cljson ['downloads'] ['client_mappings']
-    download_resource (mpdl ['url'], 'client.txt', False, mpdl ['sha1'])
+    download_resource (mpdl ['url'], 'client.txt', True, mpdl ['sha1'])
     mapping.convert_mappings ('.cache/client.txt', '.cache/client.tsrg', True)
-    os.system ('java -jar libs/specialsource.jar -q -i .cache/client_official.jar -o .cache/client.jar -m .cache/client.tsrg')
+    syswrap ('java -jar libs/specialsource.jar -q -i .cache/client_official.jar -o .cache/client.jar -m .cache/client.tsrg')
 
 # Download dependencies
 def download_dependencies (projectjson, properties):
@@ -107,7 +104,7 @@ def download_assets (projectjson, properties):
     if not os.path.exists ('.cache/assets/objects'): os.mkdir ('.cache/assets/objects')
     if not os.path.exists ('.cache/assets/indexes'): os.mkdir ('.cache/assets/indexes')
     ai = cljson ['assetIndex']
-    download_resource (ai ['url'], 'assets/indexes/index.json', False, ai ['sha1'])
+    download_resource (ai ['url'], 'assets/indexes/index.json', True, ai ['sha1'])
     index = open ('.cache/assets/indexes/index.json')
     indexjson = json.load (index)
     index.close ()
@@ -141,6 +138,11 @@ def setup_vscode (projectjson, properties):
     s.add ('.cache/libs/*.jar')
     s.add ('.cache/client.jar')
     stjson ['java.project.referencedLibraries'] = list (s)
+    li = stjson.get ('java.project.sourcePaths', [])
+    s = set (li)
+    s.add ('src/agent/')
+    s.add ('src/loader/')
+    stjson ['java.project.sourcePaths'] = list (s)
     f = open ('.vscode/settings.json', 'w')
     json.dump (stjson, f)
     f.close ()
@@ -151,7 +153,7 @@ def run_minecraft (projectjson, properties):
     cljson = json.load (cl)
     cl.close ()
     ld = os.listdir ('.cache/libs/')
-    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../../output/asm.jar', '../../output/loader.jar'])
+    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../../output/loader.jar'])
     if not os.path.exists ('.cache/natives'): os.mkdir ('.cache/natives')
     vars = {
         'classpath': cps,
@@ -171,20 +173,17 @@ def run_minecraft (projectjson, properties):
         'version_type': 'Berry'
     }
     args = cljson ['arguments']
-    jvmargs = []
+    jvmargs = ['-javaagent:../../output/agent.jar']
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
             jvmargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
         else:
             rules = jvmarg ['rules']
             if check_rule (rules): jvmargs.append (jvmarg ['value'])
-    gameargs = []
+    gameargs = [cljson ['mainClass']]
     for gamearg in args ['game']:
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
-    # Windows support
-    if os.path.exists ('.cache/game/mods/api.jar'): os.remove ('.cache/game/mods/api.jar')
-    os.rename ('output/api.jar', '.cache/game/mods/api.jar')
     os.chdir ('.cache/game/')
-    os.system (f'java {" ".join (jvmargs)} {cljson ["mainClass"]} {" ".join (gameargs)}')
+    syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoaderMain {" ".join (gameargs)}')
     os.chdir ('../../')
