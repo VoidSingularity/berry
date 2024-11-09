@@ -7,6 +7,26 @@
             "dep": [ "loader" ],
             "source": "agent",
             "manifest": "berryagent"
+        },
+        "builtins": {
+            "dep": [ "loader", "deobfuscate", "download_dependencies", "download_bundled" ],
+            "cps": [
+                "runtime/",
+                ".cache/libs/",
+                ".cache/client.jar"
+            ],
+            "source": "builtins",
+            "manifest": "builtins",
+            "extras": [
+                {
+                    "source": "runtime/",
+                    "destination": "bundled/"
+                },
+                {
+                    "source": "manifest/builtins_services/",
+                    "destination": "META-INF/services/"
+                }
+            ]
         }
     },
     "runs": {
@@ -16,8 +36,9 @@
         },
         "build_all": {
             "dep": [
+                "agent",
                 "loader",
-                "agent"
+                "builtins"
             ],
             "repeat_everytime": true
         },
@@ -43,11 +64,16 @@
             "function": "download_dependencies",
             "repeat_everytime": false
         },
+        "download_bundled": {
+            "function": "download_bundled",
+            "repeat_everytime": false
+        },
         "setup_vscode": {
             "dep": [
                 "download_minecraft",
                 "deobfuscate",
-                "download_dependencies"
+                "download_dependencies",
+                "download_bundled"
             ],
             "function": "setup_vscode",
             "repeat_everytime": false

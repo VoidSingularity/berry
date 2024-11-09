@@ -48,8 +48,7 @@ def build (name, pkg):
     opt = ' --class-path=./'
     if deps is not None:
         for dep in deps:
-            build (dep, packages [dep])
-            opt += f'{os.pathsep}output/{dep}.jar'
+            if handle (dep): opt += f'{os.pathsep}output/{dep}.jar'
     cps = pkg.get ("cps")
     if cps is not None:
         for cp in cps:
@@ -86,6 +85,25 @@ def build (name, pkg):
         f.close ()
         g.close ()
         print (f"Added manifest {mf}.mf to jar file {name}.jar")
+    extras = pkg.get ('extras')
+    if extras is not None:
+        for extra in extras:
+            src, dst = extra ['source'], extra ['destination']
+            if os.path.isdir (src):
+                for i in os.listdir (src):
+                    f = open (f'{src}{i}', 'rb')
+                    g = zip.open (f'{dst}{i}', 'w')
+                    g.write (f.read ())
+                    f.close ()
+                    g.close ()
+                    print (f'Added extra file {dst}{i} to jar file {name}.jar')
+            else:
+                f = open (f'{src}', 'rb')
+                g = zip.open (f'{dst}', 'w')
+                g.write (f.read ())
+                f.close ()
+                g.close ()
+                print (f'Added extra file {dst} to jar file {name}.jar')
     zip.close ()
     built.add (name)
 
@@ -110,9 +128,13 @@ def run (name, task, force=False):
     status.add (name)
 
 def handle (name):
-    if name in packages: build (name, packages [name])
+    flag = False
+    if name in packages:
+        flag = True
+        build (name, packages [name])
     elif name in runs: run (name, runs [name])
     print (f'Task {name} completed by handle()')
+    return flag
 
 def main ():
     for a in sys.argv [1:]:

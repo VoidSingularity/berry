@@ -123,6 +123,19 @@ def download_assets (projectjson, properties):
         ): print (f'Successfully downloaded file {obji}')
         else: print (f'File {obji} already exists. Skipping.')
 
+# Download bundled jars for asm and mixin
+def download_bundled (projectjson, properties):
+    li = [
+        "https://maven.fabricmc.net/net/fabricmc/sponge-mixin/0.15.4+mixin.0.8.7/sponge-mixin-0.15.4+mixin.0.8.7.jar",
+        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar",
+        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
+        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.7.1/asm-tree-9.7.1.jar",
+        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-commons/9.7.1/asm-commons-9.7.1.jar",
+        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar"
+    ]
+    if not os.path.exists ('runtime'): os.mkdir ('runtime')
+    for i in li: download_resource (i, '../runtime/' + i.split ('/') [-1])
+
 # TODO: Setup Intellij Workspace
 
 # Setup VSCode Workspace
@@ -137,11 +150,13 @@ def setup_vscode (projectjson, properties):
     s = set (li)
     s.add ('.cache/libs/*.jar')
     s.add ('.cache/client.jar')
+    s.add ('runtime/*.jar')
     stjson ['java.project.referencedLibraries'] = list (s)
     li = stjson.get ('java.project.sourcePaths', [])
     s = set (li)
     s.add ('src/agent/')
     s.add ('src/loader/')
+    s.add ('src/builtins/')
     stjson ['java.project.sourcePaths'] = list (s)
     f = open ('.vscode/settings.json', 'w')
     json.dump (stjson, f)
@@ -184,6 +199,8 @@ def run_minecraft (projectjson, properties):
     for gamearg in args ['game']:
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
+    if os.path.exists ('.cache/game/mods/builtins.jar'): os.remove ('.cache/game/mods/builtins.jar')
+    os.rename ('output/builtins.jar', '.cache/game/mods/builtins.jar')
     os.chdir ('.cache/game/')
     syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoaderMain {" ".join (gameargs)}')
     os.chdir ('../../')
