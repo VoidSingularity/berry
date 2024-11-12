@@ -11,17 +11,20 @@ def verify_sha1 (local, sha1):
         sha.update (ct)
     return sha.hexdigest () == sha1
 
-def download_resource (url, local, reuse=True, sha1=None):
+def download_resource (url, local, reuse=True, sha1=None, retry=10):
     if os.path.exists ('.cache/' + local) and reuse:
         if sha1 is not None and not verify_sha1 (local, sha1): return download_resource (url, local, False, sha1)
         return False
-    rmt = urllib.request.urlopen (url)
-    lcl = open ('.cache/' + local, 'wb')
-    while ct := rmt.read (65536): lcl.write (ct)
-    rmt.close (); lcl.close ()
-    # sha1 verification
-    if sha1 is not None and not verify_sha1 (local, sha1): raise Exception ("Found incorrect SHA-1, download failed")
-    return True
+    try:
+        for i in range (retry):
+            rmt = urllib.request.urlopen (url)
+            lcl = open ('.cache/' + local, 'wb')
+            while ct := rmt.read (65536): lcl.write (ct)
+            rmt.close (); lcl.close ()
+            # sha1 verification
+            if sha1 is not None and not verify_sha1 (local, sha1): raise Exception ("Found incorrect SHA-1, download failed")
+            return True
+    except Exception as e: print (e)
 
 def check_rule (rules): # Return true if passed
     flag = False
@@ -66,7 +69,6 @@ def download_minecraft (projectjson, properties):
     if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
 
 # Deobfuscate Minecraft
-# Deobfuscation is possible with berry.asm.ClassFile, but I'm just being lazy here
 import mapping
 def deobfuscate (projectjson, properties):
     cl = open ('.cache/client.json')
@@ -81,6 +83,15 @@ def deobfuscate (projectjson, properties):
 def download_dependencies (projectjson, properties):
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
+    cl.close ()
+    # Mojang ships ASM 9.3, but we need higher versions.
+    libs = cljson ['libraries']
+    for i in range (len (libs)):
+        if libs [i] ['name'] .startswith ('org.ow2.asm'):
+            libs.pop (i)
+            break
+    cl = open ('.cache/client.json', 'w')
+    json.dump (cljson, cl)
     cl.close ()
     if not os.path.exists ('.cache/libs'): os.mkdir ('.cache/libs')
     for lib in cljson ['libraries']:
@@ -127,14 +138,14 @@ def download_assets (projectjson, properties):
 def download_bundled (projectjson, properties):
     li = [
         "https://maven.fabricmc.net/net/fabricmc/sponge-mixin/0.15.4+mixin.0.8.7/sponge-mixin-0.15.4+mixin.0.8.7.jar",
-        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar",
-        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
-        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.7.1/asm-tree-9.7.1.jar",
-        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-commons/9.7.1/asm-commons-9.7.1.jar",
-        "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar"
+        "https://maven.fabricmc.net/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar",
+        "https://maven.fabricmc.net/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
+        "https://maven.fabricmc.net/org/ow2/asm/asm-tree/9.7.1/asm-tree-9.7.1.jar",
+        "https://maven.fabricmc.net/org/ow2/asm/asm-commons/9.7.1/asm-commons-9.7.1.jar",
+        "https://maven.fabricmc.net/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar"
     ]
     if not os.path.exists ('runtime'): os.mkdir ('runtime')
-    for i in li: download_resource (i, '../runtime/' + i.split ('/') [-1])
+    for i in li: download_resource (i, '../runtime/' + i.split ('/') [-1], False)
 
 # TODO: Setup Intellij Workspace
 
@@ -202,5 +213,5 @@ def run_minecraft (projectjson, properties):
     if os.path.exists ('.cache/game/mods/builtins.jar'): os.remove ('.cache/game/mods/builtins.jar')
     os.rename ('output/builtins.jar', '.cache/game/mods/builtins.jar')
     os.chdir ('.cache/game/')
-    syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoaderMain {" ".join (gameargs)}')
+    syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoader {" ".join (gameargs)}')
     os.chdir ('../../')

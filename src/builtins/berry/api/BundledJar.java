@@ -62,7 +62,7 @@ public class BundledJar {
             stream = new FileInputStream (target);
             String s2 = sha1 (stream); stream.close ();
             if (s1.equals (s2)) {
-                BerryClassTransformer.instance () .instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
+                BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
                 return;
             }
         }
@@ -72,6 +72,6 @@ public class BundledJar {
         byte[] buffer = new byte [65536]; int len;
         while ((len = stream.read (buffer)) > 0) out.write (buffer, 0, len);
         out.close (); stream.close ();
-        BerryClassTransformer.instance () .instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
+        BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
     }
 }

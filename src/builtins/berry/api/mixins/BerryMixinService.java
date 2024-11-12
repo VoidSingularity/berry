@@ -32,7 +32,7 @@ import berry.loader.BerryLoader;
 
 public class BerryMixinService implements IMixinService, IClassProvider, IClassBytecodeProvider {
     @Override public ClassNode getClassNode (String name, boolean rt, int flags) throws ClassNotFoundException, IOException {
-        InputStream stream = this.getClass () .getResourceAsStream (name.replace ('.', '/') + ".class");
+        InputStream stream = this.getClass () .getClassLoader () .getResourceAsStream (name.replace ('.', '/') + ".class");
         byte[] data = stream.readAllBytes ();
         stream.close ();
         ClassNode node = new ClassNode ();

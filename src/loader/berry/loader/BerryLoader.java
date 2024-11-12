@@ -36,7 +36,7 @@ public class BerryLoader {
                 File file = new File (moddir + mod);
                 JarContainer container = new JarContainer (file);
                 JarContainer.containers.put (mod, container);
-                BerryClassTransformer.instance () .instrumentation () .appendToSystemClassLoaderSearch (container.file ());
+                BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (container.file ());
                 var jar = container.file ();
                 var mf = jar.getManifest ();
                 if (mf == null) continue;

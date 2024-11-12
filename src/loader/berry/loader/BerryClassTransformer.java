@@ -17,19 +17,23 @@ public class BerryClassTransformer implements ClassFileTransformer {
         return instance;
     }
     private final Instrumentation inst;
-    public Instrumentation instrumentation () {
-        return this.inst;
+    public static Instrumentation instrumentation () {
+        return instance.inst;
     }
     public BerryClassTransformer (Instrumentation inst) {
         instance = this;
         this.inst = inst;
     }
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
-        try {
-            for (var consumer : all) buffer = consumer.transform (loader, name, clazz, domain, buffer);
-            return buffer;
-        } catch (IOException e) {
-            return null;
+        // DO NOT TRANSFORM THESE!
+        if (name.startsWith ("java") || name.startsWith ("jdk") || name.startsWith ("sun")) return null;
+        for (var consumer : all) {
+            try {
+                buffer = consumer.transform (loader, name, clazz, domain, buffer);
+            } catch (IOException e) {
+                System.err.println (String.format ("[JA] Failed to transform class %s using %s", name, consumer.getClass () .getName ()));
+            }
         }
+        return buffer;
     }
 }

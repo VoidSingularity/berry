@@ -25,6 +25,10 @@
                 {
                     "source": "manifest/builtins_services/",
                     "destination": "META-INF/services/"
+                },
+                {
+                    "source": "manifest/builtin_mixins.json",
+                    "destination": "builtin_mixins.json"
                 }
             ]
         }
@@ -43,24 +47,17 @@
             "repeat_everytime": true
         },
         "download_minecraft": {
-            "dep": [
-                "download_manifest",
-                "build_all"
-            ],
+            "dep": [ "download_manifest" ],
             "function": "download_minecraft",
             "repeat_everytime": false
         },
         "deobfuscate": {
-            "dep": [
-                "download_minecraft"
-            ],
+            "dep": [ "download_minecraft" ],
             "function": "deobfuscate",
             "repeat_everytime": false
         },
         "download_dependencies": {
-            "dep": [
-                "download_minecraft"
-            ],
+            "dep": [ "download_minecraft" ],
             "function": "download_dependencies",
             "repeat_everytime": false
         },
