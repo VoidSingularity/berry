@@ -5,8 +5,13 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import berry.utils.Graph;
 
 public class BerryLoader {
     private static String side;
@@ -17,7 +22,7 @@ public class BerryLoader {
         side = s == null ? "CLIENT" /* defaults to CLIENT */ : s;
         new BerryLoader (args);
     }
-    public static record JarStringInfo (JarContainer jar, String info) {}
+    public static record JarStringInfo (JarContainer jar, String info, String name) {}
     public BerryLoader (String[] args) {
         int i;
         String moddir = null;
@@ -36,32 +41,45 @@ public class BerryLoader {
                 File file = new File (moddir + mod);
                 JarContainer container = new JarContainer (file);
                 JarContainer.containers.put (mod, container);
-                BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (container.file ());
                 var jar = container.file ();
                 var mf = jar.getManifest ();
                 if (mf == null) continue;
                 var attr = mf.getMainAttributes () .getValue ("Berry-Base-Mod");
-                if (attr != null) bmc.add (new JarStringInfo (container, attr));
+                var name = mf.getMainAttributes () .getValue ("Berry-Base-Mod-Name");
+                if (attr != null) {
+                    BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (container.file ());
+                    bmc.add (new JarStringInfo (container, attr, name));
+                }
             } catch (IOException e) {}
         }
         String[] argv = new String [args.length - 1];
         for (i=1; i<args.length; i++) argv [i-1] = args [i];
         Thread thread = new Thread (
             () -> {
+                Graph init = new Graph ();
+                Map <String, BerryModInitializer> ins = new HashMap <> ();
                 for (JarStringInfo info : bmc) {
                     JarContainer jar = info.jar;
                     String cls = info.info;
                     try {
                         Class <?> basemod = Class.forName (cls);
-                        MethodHandle handle = MethodHandles.lookup () .findStatic (basemod, "initialize", MethodType.methodType (Void.TYPE, JarContainer.class, String[].class)) .asFixedArity ();
-                        handle.invoke (jar, argv);
+                        Constructor <?> c = basemod.getConstructor ();
+                        BerryModInitializer initializer = (BerryModInitializer) c.newInstance ();
+                        initializer.preinit (init, jar, info.name);
+                        ins.put (info.name, initializer);
                     } catch (ClassNotFoundException e) {
                         System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
+                    } catch (ClassCastException e) {
+                        System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!"));
                     } catch (NoSuchMethodException e) {}
                     catch (IllegalAccessException e) {}
                     catch (Throwable throwable) {
                         throw new RuntimeException (throwable);
                     }
+                }
+                for (String name : init.sorted ()) {
+                    ins.get (name) .initialize (argv);
+                    System.out.println (String.format ("Initialized mod %s!", name));
                 }
                 try {
                     Class <?> main = Class.forName (args [0]);

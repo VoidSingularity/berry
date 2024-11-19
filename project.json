@@ -1,6 +1,11 @@
 {
     "packages": {
+        "utils": {
+            "source": "utils",
+            "manifest": "utils"
+        },
         "loader": {
+            "dep": [ "utils" ],
             "source": "loader"
         },
         "agent": {
@@ -9,7 +14,7 @@
             "manifest": "berryagent"
         },
         "builtins": {
-            "dep": [ "loader", "deobfuscate", "download_dependencies", "download_bundled" ],
+            "dep": [ "utils", "loader", "deobfuscate", "download_dependencies", "download_bundled" ],
             "cps": [
                 "runtime/",
                 ".cache/libs/",
@@ -40,6 +45,7 @@
         },
         "build_all": {
             "dep": [
+                "utils",
                 "agent",
                 "loader",
                 "builtins"

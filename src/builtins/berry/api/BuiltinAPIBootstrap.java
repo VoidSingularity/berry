@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.List;
 
 import berry.api.mixins.MixinInitialize;
+import berry.loader.BerryModInitializer;
 import berry.loader.JarContainer;
+import berry.utils.Graph;
 
-public class BuiltinAPIBootstrap {
+public class BuiltinAPIBootstrap implements BerryModInitializer {
     public static final List <String> bundles = List.of (
         "asm-9.7.1.jar",
         "asm-analysis-9.7.1.jar",
@@ -15,7 +17,12 @@ public class BuiltinAPIBootstrap {
         "asm-util-9.7.1.jar",
         "sponge-mixin-0.15.4+mixin.0.8.7.jar"
     );
-    public static void initialize (JarContainer container, String[] argv) throws IOException {
+    private JarContainer container = null;
+    public void preinit (Graph G, JarContainer jar, String name) {
+        G.addVertex (new Graph.Vertex (name));
+        this.container = jar;
+    }
+    public void initialize (String[] argv) {
         // Load bundled
         // Find the game root dir
         String dir = null;
@@ -24,7 +31,9 @@ public class BuiltinAPIBootstrap {
         if (argv [i] .equals ("--gameDir"))
         dir = argv [i+1];
         // load
-        for (String bundle : bundles) BundledJar.addBundled (dir, container, "bundled/" + bundle);
+        for (String bundle : bundles)
+        try { BundledJar.addBundled (dir, container, "bundled/" + bundle); }
+        catch (IOException e) { throw new RuntimeException (e); }
         // Mixin bootstrap
         MixinInitialize.initialize ();
     }

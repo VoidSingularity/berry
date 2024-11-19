@@ -179,7 +179,7 @@ def run_minecraft (projectjson, properties):
     cljson = json.load (cl)
     cl.close ()
     ld = os.listdir ('.cache/libs/')
-    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../../output/loader.jar'])
+    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../../output/loader.jar', '../../output/utils.jar'])
     if not os.path.exists ('.cache/natives'): os.mkdir ('.cache/natives')
     vars = {
         'classpath': cps,
@@ -211,6 +211,8 @@ def run_minecraft (projectjson, properties):
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
     if os.path.exists ('.cache/game/mods/builtins.jar'): os.remove ('.cache/game/mods/builtins.jar')
+    if not os.path.exists ('.cache/game'): os.mkdir ('.cache/game')
+    if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
     os.rename ('output/builtins.jar', '.cache/game/mods/builtins.jar')
     os.chdir ('.cache/game/')
     syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoader {" ".join (gameargs)}')

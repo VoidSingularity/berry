@@ -1,2 +1,3 @@
 Manifest-Version: 1.0
 Berry-Base-Mod: berry.api.BuiltinAPIBootstrap
+Berry-Base-Mod-Name: berrybuiltins

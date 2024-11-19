@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
 
 import berry.loader.BerryClassTransformer;
+import berry.utils.Graph;
 
 public class MixinInitialize {
     public static void initialize () {
@@ -21,17 +22,16 @@ public class MixinInitialize {
 		}
         // hello world
         Mixins.addConfiguration ("builtin_mixins.json");
-        BerryClassTransformer.instance () .all .add (
-            (loader, name, clazz, domain, code) -> {
-                try {
-                    name = name.replace ('/', '.');
-                    return BerryMixinService.transformer.transformClassBytes (name, name, code);
-                } catch (Throwable t) {
-                    System.err.println (String.format ("[BERRY/MIXIN] Error transforming class %s", name));
-                    t.printStackTrace ();
-                    return null;
-                }
+        BerryClassTransformer.ByteCodeTransformer transformer = (loader, name, clazz, domain, code) -> {
+            try {
+                name = name.replace ('/', '.');
+                return BerryMixinService.transformer.transformClassBytes (name, name, code);
+            } catch (Throwable t) {
+                System.err.println (String.format ("[BERRY/MIXIN] Error transforming class %s", name));
+                t.printStackTrace ();
+                return null;
             }
-        );
+        };
+        BerryClassTransformer.instance () .all.addVertex (new Graph.Vertex ("berry::mixin", transformer));
     }
 }
