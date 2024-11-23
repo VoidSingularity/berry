@@ -17,7 +17,9 @@ def download_resource (url, local, reuse=True, sha1=None, retry=10, root='.cache
         return False
     try:
         for i in range (retry):
-            rmt = urllib.request.urlopen (url)
+            req = urllib.request.Request (url)
+            req.add_header ('User-Agent', 'BerryBuild')
+            rmt = urllib.request.urlopen (req)
             lcl = open (root + local, 'wb')
             while ct := rmt.read (65536): lcl.write (ct)
             rmt.close (); lcl.close ()
