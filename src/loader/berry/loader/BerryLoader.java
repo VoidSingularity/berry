@@ -70,7 +70,7 @@ public class BerryLoader {
                     } catch (ClassNotFoundException e) {
                         System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
                     } catch (ClassCastException e) {
-                        System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!"));
+                        System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!", cls));
                     } catch (NoSuchMethodException e) {}
                     catch (IllegalAccessException e) {}
                     catch (Throwable throwable) {

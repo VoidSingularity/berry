@@ -4,25 +4,25 @@ def syswrap (cmd):
     print ('$', cmd)
     os.system (cmd)
 
-def verify_sha1 (local, sha1):
+def verify_sha1 (local, sha1, root):
     sha = hashlib.sha1 ()
-    lcl = open ('.cache/' + local, 'rb')
+    lcl = open (root + local, 'rb')
     while ct := lcl.read (65536):
         sha.update (ct)
     return sha.hexdigest () == sha1
 
-def download_resource (url, local, reuse=True, sha1=None, retry=10):
-    if os.path.exists ('.cache/' + local) and reuse:
-        if sha1 is not None and not verify_sha1 (local, sha1): return download_resource (url, local, False, sha1)
+def download_resource (url, local, reuse=True, sha1=None, retry=10, root='.cache/'):
+    if os.path.exists (root + local) and reuse:
+        if sha1 is not None and not verify_sha1 (local, sha1, root): return download_resource (url, local, False, sha1)
         return False
     try:
         for i in range (retry):
             rmt = urllib.request.urlopen (url)
-            lcl = open ('.cache/' + local, 'wb')
+            lcl = open (root + local, 'wb')
             while ct := rmt.read (65536): lcl.write (ct)
             rmt.close (); lcl.close ()
             # sha1 verification
-            if sha1 is not None and not verify_sha1 (local, sha1): raise Exception ("Found incorrect SHA-1, download failed")
+            if sha1 is not None and not verify_sha1 (local, sha1, root): raise Exception ("Found incorrect SHA-1, download failed")
             return True
     except Exception as e: print (e)
 
@@ -108,29 +108,32 @@ def download_dependencies (projectjson, properties):
 
 # Download assets
 def download_assets (projectjson, properties):
+    hb = os.path.expanduser ('~')
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
-    if not os.path.exists ('.cache/assets'): os.mkdir ('.cache/assets')
-    if not os.path.exists ('.cache/assets/objects'): os.mkdir ('.cache/assets/objects')
-    if not os.path.exists ('.cache/assets/indexes'): os.mkdir ('.cache/assets/indexes')
+    if not os.path.exists (f'{hb}/.berry'): os.mkdir (f'{hb}/.berry')
+    if not os.path.exists (f'{hb}/.berry/assets'): os.mkdir (f'{hb}/.berry/assets')
+    if not os.path.exists (f'{hb}/.berry/assets/objects'): os.mkdir (f'{hb}/.berry/assets/objects')
+    if not os.path.exists (f'{hb}/.berry/assets/indexes'): os.mkdir (f'{hb}/.berry/assets/indexes')
     ai = cljson ['assetIndex']
-    download_resource (ai ['url'], 'assets/indexes/index.json', True, ai ['sha1'])
-    index = open ('.cache/assets/indexes/index.json')
+    download_resource (ai ['url'], f'assets/indexes/{ai["id"]}.json', True, ai ['sha1'], root=f'{hb}/.berry/')
+    index = open (f'{hb}/.berry/assets/indexes/{ai["id"]}.json')
     indexjson = json.load (index)
     index.close ()
     s = '0123456789abcdef'
     for i in s:
         for j in s:
-            if not os.path.exists (f'.cache/assets/objects/{i}{j}'):
-                os.mkdir (f'.cache/assets/objects/{i}{j}')
+            if not os.path.exists (f'{hb}/.berry/assets/objects/{i}{j}'):
+                os.mkdir (f'{hb}/.berry/assets/objects/{i}{j}')
     for obji in indexjson ['objects']:
         obj = indexjson ['objects'] [obji]
         if download_resource (
             f'https://resources.download.minecraft.net/{obj ["hash"] [:2]}/{obj ["hash"]}',
             f'assets/objects/{obj ["hash"] [:2]}/{obj ["hash"]}',
             True,
-            obj ['hash']
+            obj ['hash'],
+            root=f'{hb}/.berry/'
         ): print (f'Successfully downloaded file {obji}')
         else: print (f'File {obji} already exists. Skipping.')
 
@@ -189,8 +192,8 @@ def run_minecraft (projectjson, properties):
         'auth_player_name': properties.get ('player_name', 'Dev'),
         'version_name': properties.get ('version_name', properties.get ('minecraft_version', 'unknown')),
         'game_directory': './',
-        'assets_root': '../assets/',
-        'assets_index_name': 'index',
+        'assets_root': os.path.expanduser ('~/.berry/assets/'),
+        'assets_index_name': cljson ['assetIndex'] ['id'],
         'auth_uuid': '01234567-89ab-cdef-0123-456789abcdef',
         'auth_access_token': 'aa',
         'clientid': 'berry',
