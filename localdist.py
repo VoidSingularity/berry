@@ -33,8 +33,8 @@ for fn in os.listdir ('dists'):
     else:
         # Compare mtime between two files
         old = rels [mo.group (1)]
-        mto = os.stat ('dists' + old) .st_mtime_ns
-        mtn = os.stat ('dists' + fn) .st_mtime_ns
+        mto = os.stat ('dists/' + old) .st_mtime_ns
+        mtn = os.stat ('dists/' + fn) .st_mtime_ns
         if mtn > mto: rels [mo.group (1)] = fn
 
 # Update
