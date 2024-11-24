@@ -1,4 +1,4 @@
-package berry;
+package berry.agent;
 
 import java.lang.instrument.Instrumentation;
 

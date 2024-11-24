@@ -36,6 +36,26 @@
                     "destination": "builtin_mixins.json"
                 }
             ]
+        },
+        "_installer": {
+            "dep": [ "agent", "builtins" ],
+            "cps": [ "libs/" ],
+            "source": "installer",
+            "manifest": "installer",
+            "extras": [
+                {
+                    "source": "output/agent.jar",
+                    "destination": "jars/agent.jar"
+                },
+                {
+                    "source": "output/builtins.jar",
+                    "destination": "jars/builtins.jar"
+                },
+                {
+                    "source": "libs/LICENSE-SpecialSource.md",
+                    "destination": "META-INF/LICENSE-SpecialSource.md"
+                }
+            ]
         }
     },
     "runs": {
@@ -98,6 +118,10 @@
             ],
             "function": "run_minecraft",
             "repeat_everytime": false
+        },
+        "installer": {
+            "dep": [ "_installer" ],
+            "function": "installer"
         }
     }
 }

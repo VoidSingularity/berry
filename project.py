@@ -1,4 +1,4 @@
-import hashlib, json, os, platform, re, urllib.request
+import hashlib, json, os, platform, re, urllib.request, zipfile
 
 def syswrap (cmd):
     print ('$', cmd)
@@ -167,12 +167,14 @@ def setup_vscode (projectjson, properties):
     s.add ('.cache/libs/*.jar')
     s.add ('.cache/client.jar')
     s.add ('runtime/*.jar')
+    s.add ('libs/*.jar')
     stjson ['java.project.referencedLibraries'] = list (s)
     li = stjson.get ('java.project.sourcePaths', [])
     s = set (li)
     s.add ('src/agent/')
     s.add ('src/loader/')
     s.add ('src/builtins/')
+    s.add ('src/installer/')
     stjson ['java.project.sourcePaths'] = list (s)
     f = open ('.vscode/settings.json', 'w')
     json.dump (stjson, f)
@@ -222,3 +224,25 @@ def run_minecraft (projectjson, properties):
     os.chdir ('.cache/game/')
     syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoader {" ".join (gameargs)}')
     os.chdir ('../../')
+
+# Build Installer
+# Just merge three jars together!
+def installer (projectjson, properties):
+    zinst = zipfile.ZipFile ('output/_installer.jar', 'r')
+    zjson = zipfile.ZipFile ('libs/json-20240303.jar', 'r')
+    zdobf = zipfile.ZipFile ('libs/specialsource.jar', 'r')
+    zout = zipfile.ZipFile ('output/installer.jar', 'w')
+    # entries
+    ent = set ()
+    for i in zinst.filelist: ent.add (i.filename)
+    for i in zjson.filelist: ent.add (i.filename)
+    for i in zdobf.filelist: ent.add (i.filename)
+    for i in ent:
+        try: zin = zinst.open (i)
+        except Exception:
+            try: zin = zjson.open (i)
+            except Exception: zin = zdobf.open (i)
+        zou = zout.open (i, 'w')
+        zou.write (zin.read ())
+        zou.close ()
+    zinst.close (); zjson.close (); zout.close ()
