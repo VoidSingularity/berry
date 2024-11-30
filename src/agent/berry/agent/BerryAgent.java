@@ -13,7 +13,6 @@ public class BerryAgent {
         // The main class is changed into berry.loader.BerryLoaderMain
         // The main class will search for loader mods in the mods directory and load them
         // The loader mods should load the rest of the mods
-        // However, all the classes are loaded by the main class (berry.loader.BerryLoaderMain)
         inst.addTransformer (new BerryClassTransformer (inst), true);
         System.out.println ("[JA] BerryAgent loaded.");
     }

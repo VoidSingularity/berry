@@ -147,7 +147,12 @@ def download_bundled (projectjson, properties):
         "https://maven.fabricmc.net/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
         "https://maven.fabricmc.net/org/ow2/asm/asm-tree/9.7.1/asm-tree-9.7.1.jar",
         "https://maven.fabricmc.net/org/ow2/asm/asm-commons/9.7.1/asm-commons-9.7.1.jar",
-        "https://maven.fabricmc.net/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar"
+        "https://maven.fabricmc.net/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar",
+        "https://repo1.maven.org/maven2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.jar",
+        "https://repo1.maven.org/maven2/org/jetbrains/annotations/26.0.1/annotations-26.0.1.jar",
+        "https://repo1.maven.org/maven2/io/github/llamalad7/mixinextras-common/0.4.1/mixinextras-common-0.4.1.jar",
+        "https://repo1.maven.org/maven2/org/sat4j/org.sat4j.core/2.3.1/org.sat4j.core-2.3.1.jar",
+        "https://repo1.maven.org/maven2/org/sat4j/org.sat4j.pb/2.3.1/org.sat4j.pb-2.3.1.jar"
     ]
     if not os.path.exists ('runtime'): os.mkdir ('runtime')
     for i in li: download_resource (i, '../runtime/' + i.split ('/') [-1], False)

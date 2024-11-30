@@ -6,6 +6,8 @@ import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
 
+import com.llamalad7.mixinextras.MixinExtrasBootstrap;
+
 import berry.loader.BerryClassTransformer;
 import berry.utils.Graph;
 
@@ -33,5 +35,6 @@ public class MixinInitialize {
             }
         };
         BerryClassTransformer.instance () .all.addVertex (new Graph.Vertex ("berry::mixin", transformer));
+        MixinExtrasBootstrap.init ();
     }
 }
