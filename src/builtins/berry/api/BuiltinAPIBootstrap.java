@@ -1,44 +1,35 @@
 package berry.api;
 
 import java.io.IOException;
-import java.util.List;
+import java.io.InputStream;
+import java.util.Scanner;
 
 import berry.api.mixins.MixinInitialize;
+import berry.loader.BerryLoader;
 import berry.loader.BerryModInitializer;
 import berry.loader.JarContainer;
-import berry.utils.Graph;
 
 public class BuiltinAPIBootstrap implements BerryModInitializer {
-    public static final List <String> bundles = List.of (
-        "asm-9.7.1.jar",
-        "asm-analysis-9.7.1.jar",
-        "asm-commons-9.7.1.jar",
-        "asm-tree-9.7.1.jar",
-        "asm-util-9.7.1.jar",
-        "sponge-mixin-0.15.4+mixin.0.8.7.jar",
-        "annotations-3.0.1u2.jar",
-        "annotations-26.0.1.jar",
-        "mixinextras-common-0.4.1.jar",
-        "org.sat4j.core-2.3.1.jar",
-        "org.sat4j.pb-2.3.1.jar"
-    );
-    private JarContainer container = null;
-    public void preinit (Graph G, JarContainer jar, String name) {
-        G.addVertex (new Graph.Vertex (name));
-        this.container = jar;
-    }
     public void initialize (String[] argv) {
         // Load bundled
-        // Find the game root dir
-        String dir = null;
-        int i;
-        for (i=0; i<argv.length-1; i++)
-        if (argv [i] .equals ("--gameDir"))
-        dir = argv [i+1];
-        // load
-        for (String bundle : bundles)
-        try { BundledJar.addBundled (dir, container, "bundled/" + bundle); }
-        catch (IOException e) { throw new RuntimeException (e); }
+        for (String jarname : JarContainer.containers.keySet ()) {
+            JarContainer jar = JarContainer.containers.get (jarname);
+            var file = jar.file ();
+            var entry = file.getEntry ("META-INF/bundled_jars");
+            if (entry != null) {
+                try (InputStream is = file.getInputStream (entry); Scanner scanner = new Scanner (is)) {
+                    while (scanner.hasNextLine ()) {
+                        String line = scanner.nextLine () .strip ();
+                        if (line.isEmpty ()) continue;
+                        if (line.startsWith ("#")) continue;
+                        BundledJar.addBundled (BerryLoader.getGameDirectory (), jar, line);
+                    }
+                } catch (IOException e) {
+                    System.err.println ("[BERRY/BUILTIN] Unexpected failure while reading bundle info!");
+                    e.printStackTrace ();
+                }
+            }
+        }
         // Mixin bootstrap
         MixinInitialize.initialize ();
     }

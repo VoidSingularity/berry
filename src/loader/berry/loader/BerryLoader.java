@@ -13,26 +13,32 @@ import java.util.Map;
 
 import berry.utils.Graph;
 
-public class BerryLoader {
+public final class BerryLoader {
     private static String side;
     public static String getSide () { return side; }
+    private static String modir;
+    public static String getModDirectory () { return modir; }
+    private static String gamdir = null;
+    /* Nullable */ public static String getGameDirectory () { return gamdir; }
 
     public static void main (String[] args) {
         String s = System.getProperty ("berry.side");
         side = s == null ? "CLIENT" /* defaults to CLIENT */ : s;
         new BerryLoader (args);
     }
-    public static record JarStringInfo (JarContainer jar, String info, String name) {}
-    public BerryLoader (String[] args) {
+    private static record JarStringInfo (JarContainer jar, String info, String name) {}
+    private BerryLoader (String[] args) {
         int i;
         String moddir = null;
         for (i=2; i<args.length; i++)
         if (args [i-1] .equals ("--gameDir")) {
             String s = args [i];
             if (!s.endsWith (File.separator)) s += File.separator;
+            gamdir = s;
             moddir = s + "mods" + File.separator;
         }
         if (moddir == null) moddir = "./mods/";
+        modir = moddir;
         File dir = new File (moddir);
         var mods = dir.list ();
         List <JarStringInfo> bmc = new ArrayList <> ();
