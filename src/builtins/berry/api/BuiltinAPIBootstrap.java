@@ -16,8 +16,7 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
         "asm-tree-9.7.1.jar",
         "asm-util-9.7.1.jar",
         "sponge-mixin-0.15.4+mixin.0.8.7.jar",
-        "javax.annotation-api-1.3.2.jar",
-        "annotations-26.0.1.jar",
+        "annotations-3.0.1u2.jar",
         "mixinextras-common-0.4.1.jar",
         "org.sat4j.core-2.3.1.jar",
         "org.sat4j.pb-2.3.1.jar"
