@@ -1,6 +1,8 @@
+Berry is a mod loader for Minecraft, designed for extreme light-weighing and extensibility.
+
 In order to build this project, you must have Python 3.8+ installed. Run _build.py \<task\>_. For example, directly run _build.py run\_minecraft_ should run Minecraft after downloading mandatory assets and libraries.
 
-If you want to work on this project with Visual Studio Code, run _build.py setup\_vscode_. If you are using Intellij IDEA, please run _build.py download\_dependencies_ and manually add .cache/client.jar and .cache/libs/ to your library.
+If you want to work on this project with Visual Studio Code, run _build.py setup\_vscode_. If you are using Intellij IDEA, it should automatically work properly (if not, please open an issue).
 
 All files in this repository are licensed under the GNU Lesser General Public License v3 (or later), unless otherwise specified.
 
