@@ -19,7 +19,7 @@ public final class BerryLoader {
     private static String modir;
     public static String getModDirectory () { return modir; }
     private static String gamdir = null;
-    /* Nullable */ public static String getGameDirectory () { return gamdir; }
+    public static String getGameDirectory () { return gamdir; }
 
     public static void main (String[] args) {
         String s = System.getProperty ("berry.side");
@@ -37,6 +37,7 @@ public final class BerryLoader {
             gamdir = s;
             moddir = s + "mods" + File.separator;
         }
+        if (gamdir == null) gamdir = "./";
         if (moddir == null) moddir = "./mods/";
         modir = moddir;
         File dir = new File (moddir);
