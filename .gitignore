@@ -8,3 +8,6 @@ __pycache__/
 .idea/
 runtime/
 dists/
+build.py
+mapping.py
+project_template.py
