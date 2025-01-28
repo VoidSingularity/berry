@@ -36,3 +36,5 @@ def installer (projectjson, properties):
         zou.write (zin.read ())
         zou.close ()
     zinst.close (); zjson.close (); zout.close ()
+
+processors ['builtins'] = lambda ns, i: os.rename ('.cache/runtime/' + i.split ('/') [-1], f'runtime/{ns}-{i.split("/")[-1]}')
