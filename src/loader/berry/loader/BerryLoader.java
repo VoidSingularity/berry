@@ -35,6 +35,12 @@ public final class BerryLoader {
     public static String getModDirectory () { return modir; }
     private static String gamdir = null;
     public static String getGameDirectory () { return gamdir; }
+    private static String[] sargs;
+    public static String[] getArgs () { return sargs; }
+    private static String entry;
+    public static String getEntrypoint () { return entry; }
+    private static boolean indev;
+    public static boolean isDevelopment () { return indev; }
 
     public static void main (String[] args) {
         String s = System.getProperty ("berry.side");
@@ -43,6 +49,7 @@ public final class BerryLoader {
     }
     private static record JarStringInfo (JarContainer jar, String info, String name) {}
     private BerryLoader (String[] args) {
+        indev = "true" .equals (System.getProperty ("berry.indev"));
         int i;
         String moddir = null;
         for (i=2; i<args.length; i++)
@@ -76,48 +83,45 @@ public final class BerryLoader {
         }
         String[] argv = new String [args.length - 1];
         for (i=1; i<args.length; i++) argv [i-1] = args [i];
-        Thread thread = new Thread (
-            () -> {
-                Graph init = new Graph ();
-                Map <String, BerryModInitializer> ins = new HashMap <> ();
-                for (JarStringInfo info : bmc) {
-                    JarContainer jar = info.jar;
-                    String cls = info.info;
-                    try {
-                        Class <?> basemod = Class.forName (cls);
-                        Constructor <?> c = basemod.getConstructor ();
-                        BerryModInitializer initializer = (BerryModInitializer) c.newInstance ();
-                        initializer.preinit (init, jar, info.name);
-                        ins.put (info.name, initializer);
-                    } catch (ClassNotFoundException e) {
-                        System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
-                    } catch (ClassCastException e) {
-                        System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!", cls));
-                    } catch (NoSuchMethodException e) {}
-                    catch (IllegalAccessException e) {}
-                    catch (Throwable throwable) {
-                        throw new RuntimeException (throwable);
-                    }
-                }
-                for (String name : init.sorted ()) {
-                    ins.get (name) .initialize (argv);
-                    System.out.println (String.format ("Initialized mod %s!", name));
-                }
-                try {
-                    Class <?> main = Class.forName (args [0]);
-                    MethodHandle handle = MethodHandles.lookup () .findStatic (main, "main", MethodType.methodType (Void.TYPE, String[].class)) .asFixedArity ();
-                    handle.invoke (argv);
-                } catch (ClassNotFoundException exception) {
-                    System.err.println (String.format ("Unable to load main class %s. Exiting.", args [0]));
-                } catch (NoSuchMethodException exception) {
-                    System.err.println (String.format ("Unable to find void main(String[]) in main class. Exiting."));
-                } catch (IllegalAccessException exception) {
-                    System.err.println (String.format ("Unable to access void main(String[]) in main class. Exiting."));
-                } catch (Throwable throwable) {
-                    throw new RuntimeException (throwable);
-                }
+        sargs = argv;
+        entry = args [0];
+        Graph init = new Graph ();
+        Map <String, BerryModInitializer> ins = new HashMap <> ();
+        for (JarStringInfo info : bmc) {
+            JarContainer jar = info.jar;
+            String cls = info.info;
+            try {
+                Class <?> basemod = Class.forName (cls);
+                Constructor <?> c = basemod.getConstructor ();
+                BerryModInitializer initializer = (BerryModInitializer) c.newInstance ();
+                initializer.preinit (init, jar, info.name);
+                ins.put (info.name, initializer);
+            } catch (ClassNotFoundException e) {
+                System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
+            } catch (ClassCastException e) {
+                System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!", cls));
+            } catch (NoSuchMethodException e) {}
+            catch (IllegalAccessException e) {}
+            catch (Throwable throwable) {
+                throw new RuntimeException (throwable);
             }
-        );
-        thread.run ();
+        }
+        for (String name : init.sorted ()) {
+            ins.get (name) .initialize (argv);
+            System.out.println (String.format ("Initialized mod %s!", name));
+        }
+        try {
+            Class <?> main = Class.forName (args [0]);
+            MethodHandle handle = MethodHandles.lookup () .findStatic (main, "main", MethodType.methodType (Void.TYPE, String[].class)) .asFixedArity ();
+            handle.invoke (argv);
+        } catch (ClassNotFoundException exception) {
+            System.err.println (String.format ("Unable to load main class %s. Exiting.", args [0]));
+        } catch (NoSuchMethodException exception) {
+            System.err.println (String.format ("Unable to find void main(String[]) in main class. Exiting."));
+        } catch (IllegalAccessException exception) {
+            System.err.println (String.format ("Unable to access void main(String[]) in main class. Exiting."));
+        } catch (Throwable throwable) {
+            throw new RuntimeException (throwable);
+        }
     }
 }

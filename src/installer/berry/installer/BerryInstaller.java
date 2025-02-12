@@ -40,11 +40,10 @@ import net.md_5.specialsource.SpecialSource;
 
 public class BerryInstaller {
     // TODO: Change these before publishing!
-    public static final String VERSION = "0.0.0+2024112401";
-    public static final Map <String, Integer> SIZE = Map.of ("utils", 8003, "loader", 13028);
+    public static final String VERSION = "0.0.0+2025021201";
+    public static final Map <String, Integer> SIZE = Map.of ("loader", 23829);
     public static final Map <String, String> SHA1 = Map.of (
-        "utils", "6955e347fa6cd7f588bb308e5b6fda49161cad36",
-        "loader", "4e998e7e1344e7d404f766e154da7f8646c120a1"
+        "loader", "ef766dafc565b4cadeb607b34852ae06fa1eb499"
     );
 
     private static void mktree (String tree) {
@@ -53,10 +52,9 @@ public class BerryInstaller {
         mktree (t.getParent ());
         t.mkdir ();
     }
-    private static boolean sha1 (File f, String hash) {
+    private static String sha1 (InputStream stream) {
         try {
             MessageDigest digest = MessageDigest.getInstance ("SHA-1");
-            FileInputStream stream = new FileInputStream (f);
             byte[] buf = new byte [65536];
             while (true) {
                 int len = stream.read (buf);
@@ -71,11 +69,21 @@ public class BerryInstaller {
                 if (h.length () == 1) builder.append ('0');
                 builder.append (h);
             }
-            return builder.toString () .equals (hash);
+            return builder.toString ();
         } catch (NoSuchAlgorithmException e) {
-            System.out.println ("Warning: your current environment does not support SHA-1");
-            return true; // Uhh
+            return "";
         } catch (IOException e) {
+            throw new RuntimeException (e);
+        }
+    }
+    private static boolean sha1 (File f, String hash) {
+        try {
+            String h = sha1 (new FileInputStream (f));
+            if (h.isEmpty () || h.equals (hash)) return true;
+            else return false;
+        } catch (IOException e) {
+            return false;
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -113,7 +121,8 @@ public class BerryInstaller {
             } catch (IOException e) {}
         }
         if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url.toString ()));
-    }private static String remapFilePath (String path) {
+    }
+    private static String remapFilePath (String path) {
         switch (path) {
             case "int": return "I";
             case "double": return "D";
@@ -204,93 +213,90 @@ public class BerryInstaller {
         }
     }
     public static void main (String[] args) throws Throwable {
-        // // List the current directory
-        // File cur = new File (".");
-        // var dirs = cur.listFiles ();
-        // // Determine Minecraft's jar name
-        // String mcj = null;
-        // Set <String> sts = new HashSet <> ();
-        // for (File f : dirs) sts.add (f.getName ());
-        // for (File f : dirs) {
-        //     String s = f.getName ();
-        //     if (!s.endsWith (".json")) continue;
-        //     String t = s.substring (0, s.length () - 5);
-        //     if (sts.contains (t + ".jar")) {
-        //         mcj = t;
-        //         break;
-        //     }
-        // }
-        // if (mcj == null) {
-        //     System.err.println ("Cannot find Minecraft jar!");
-        //     return;
-        // }
         // Download manifest
+        System.out.print ("Downloading manifest... ");
         download (
             new URI ("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json") .toURL (),
             "./manifest.json",
             null
         );
+        System.out.println ("Done.");
         // Parse manifest and download 1.21.3
-        String mcj = "1.21.3";
+        String mcj = args.length == 0 ? "1.21.3" : args [0];
+        var t = new File (".") .getAbsolutePath () .split (File.separator);
+        String curd = t [t.length - 2];
         JSONObject mf;
         InputStream stream = new FileInputStream ("manifest.json");
         mf = new JSONObject (new String (stream.readAllBytes ()));
         stream.close ();
         JSONObject verobj = null;
         for (Object obj : mf.getJSONArray ("versions")) {
-            if (obj instanceof JSONObject js && js.getString ("id") .equals ("1.21.3")) {
+            if (obj instanceof JSONObject js && js.getString ("id") .equals (mcj)) {
                 verobj = js;
                 break;
             }
         }
+        System.out.print ("Downloading client.json... ");
         download (
             new URI (verobj.getString ("url")) .toURL (),
-            "./1.21.3.json",
+            String.format ("./%s.json", curd),
             verobj.getString ("sha1")
         );
+        System.out.println ("Done.");
         // Read json file
         JSONObject jsin;
-        stream = new FileInputStream (mcj + ".json");
+        stream = new FileInputStream (curd + ".json");
         String in = new String (stream.readAllBytes ());
         stream.close ();
         jsin = new JSONObject (in);
         // Download client.jar
+        System.out.print ("Downloading client.jar... ");
         String url = jsin.getJSONObject ("downloads") .getJSONObject ("client") .getString ("url");
         try {
-            download (new URI (url) .toURL (), "./1.21.3.jar", null);
+            download (new URI (url) .toURL (), "./" + curd + ".jar", null);
         } catch (URISyntaxException e) {
             throw new RuntimeException (e);
         }
+        System.out.println ("Done.");
         // Download mapping
         url = jsin.getJSONObject ("downloads") .getJSONObject ("client_mappings") .getString ("url");
+        System.out.print ("Downloading client.txt... ");
         try {
             download (new URI (url) .toURL (), "./client.txt", null);
         } catch (URISyntaxException e) {
             throw new RuntimeException (e);
         }
+        System.out.println ("Done.");
         // Re-format
         File inf = new File ("client.txt"), outf = new File ("client.tsrg");
+        System.out.print ("Re-formatting client.txt into client.tsrg... ");
         reformat (inf, outf);
+        System.out.println ("Done.");
         // Deobfuscate
+        System.out.print ("Deobfuscating client.jar... ");
         SpecialSource.main (new String[] {
             "-q",
-            "-i", mcj + ".jar",
+            "-i", curd + ".jar",
             "-o", "__tmp.jar",
             "-m", "client.tsrg"
         });
-        File mj = new File (mcj + ".jar"); mj.delete ();
+        System.out.println ("Done.");
+        File mj = new File (curd + ".jar"); mj.delete ();
         File oj = new File ("__tmp.jar"); oj.renameTo (mj);
         // Extract agent.jar
+        System.out.print ("Extracting agent.jar... ");
         InputStream is = BerryInstaller.class.getClassLoader () .getResourceAsStream ("jars/agent.jar");
-        OutputStream os = new FileOutputStream ("agent.jar");
+        String agentdir = System.getProperty ("user.home") + File.separator + ".berry" + File.separator + "agents" + File.separator;
+        mktree (agentdir);
+        String agentfile = agentdir + sha1 (BerryInstaller.class.getClassLoader () .getResourceAsStream ("jars/agent.jar")) + ".jar";
+        OutputStream os = new FileOutputStream (agentfile);
         byte[] b;
         while ((b = is.readNBytes (65536)) .length > 0) os.write (b);
         os.close ();
-        // Modify JSON
-        String agent = new File ("agent.jar") .getAbsolutePath ();
+        System.out.println ("Done.");
         // Add agent to JVM args
-        jsin.getJSONObject ("arguments") .getJSONArray ("jvm") .put ("-javaagent:" + agent);
-        // Add utils and loader to libs
+        jsin.getJSONObject ("arguments") .getJSONArray ("jvm") .put ("-javaagent:" + agentfile);
+        // Add loader to libs
         Function <String, JSONObject> func = (str) -> {
             JSONObject obj = new JSONObject ();
             obj.put ("name", "berry:" + str + ":" + VERSION);
@@ -303,7 +309,7 @@ public class BerryInstaller {
             return obj;
         };
         JSONArray arr = jsin.getJSONArray ("libraries");
-        arr.put (func.apply ("utils")) .put (func.apply ("loader"));
+        arr.put (func.apply ("loader"));
         // Mojang ships ASM 9.3, but we need higher versions.
         int i;
         for (i=0; i<arr.length(); i++) {
@@ -320,14 +326,16 @@ public class BerryInstaller {
         arr.put (o);
         jsin.getJSONObject ("arguments") .put ("game", arr);
         // Save changes
-        os = new FileOutputStream (mcj + ".json");
+        os = new FileOutputStream (curd + ".json");
         os.write (jsin.toString () .getBytes ());
         os.close ();
         // Builtin API
+        System.out.print ("Extracting builtins.jar... ");
         mktree ("./mods/");
         is = BerryInstaller.class.getClassLoader () .getResourceAsStream ("jars/builtins.jar");
         os = new FileOutputStream ("mods/builtins.jar");
         while ((b = is.readNBytes (65536)) .length > 0) os.write (b);
         os.close ();
+        System.out.println ("Done.");
     }
 }

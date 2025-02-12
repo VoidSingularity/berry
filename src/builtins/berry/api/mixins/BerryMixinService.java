@@ -43,20 +43,25 @@ import org.spongepowered.asm.service.IMixinService;
 import org.spongepowered.asm.service.ITransformerProvider;
 import org.spongepowered.asm.util.ReEntranceLock;
 
+import berry.api.BuiltinAPIBootstrap;
+import berry.loader.BerryClassTransformer;
 import berry.loader.BerryLoader;
 
 public class BerryMixinService implements IMixinService, IClassProvider, IClassBytecodeProvider {
-    @Override public ClassNode getClassNode (String name, boolean rt, int flags) throws ClassNotFoundException, IOException {
-        InputStream stream = this.getClass () .getClassLoader () .getResourceAsStream (name.replace ('.', '/') + ".class");
+    public static ClassNode getClassNode (String name, int flags) throws IOException {
+        String slash = name.replace ('.', '/');
+        InputStream stream = BuiltinAPIBootstrap.class.getClassLoader () .getResourceAsStream (slash + ".class");
         byte[] data = stream.readAllBytes ();
         stream.close ();
+        data = BerryClassTransformer.instance () .remap (null, slash, null, null, data);
         ClassNode node = new ClassNode ();
         ClassReader reader = new ClassReader (data);
         reader.accept (node, flags);
         return node;
     }
+    @Override public ClassNode getClassNode (String name, boolean rt, int flags) throws ClassNotFoundException, IOException { return getClassNode (name, flags); }
     @Override public ClassNode getClassNode (String name) throws ClassNotFoundException, IOException { return this.getClassNode (name, true); }
-    @Override public ClassNode getClassNode (String name, boolean rt) throws ClassNotFoundException, IOException { return this.getClassNode (name, rt); }
+    @Override public ClassNode getClassNode (String name, boolean rt) throws ClassNotFoundException, IOException { return this.getClassNode (name, rt, 0); }
     /* As it is deprecated in 0.8 */ @Override public URL[] getClassPath () { return new URL [0]; }
     @Override public Class <?> findClass (String name) throws ClassNotFoundException { return Class.forName (name); }
     @Override public Class <?> findClass (String name, boolean initialize) throws ClassNotFoundException { return Class.forName (name, initialize, this.getClass () .getClassLoader ()); }
@@ -89,6 +94,7 @@ public class BerryMixinService implements IMixinService, IClassProvider, IClassB
     @Override public Collection <IContainerHandle> getMixinContainers () { return List.of (); }
     @Override public InputStream getResourceAsStream (String name) { return this.getClass () .getClassLoader () .getResourceAsStream (name); }
     @Override public String getSideName () { return BerryLoader.getSide (); }
+    // TODO: Fix compatibility level
     @Override public CompatibilityLevel getMinCompatibilityLevel () { return CompatibilityLevel.JAVA_8; }
     @Override public CompatibilityLevel getMaxCompatibilityLevel () { return CompatibilityLevel.JAVA_22; }
     private static final Map <String, ILogger> loggers = new HashMap <> ();

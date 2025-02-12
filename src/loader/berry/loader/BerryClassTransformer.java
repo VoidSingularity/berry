@@ -38,6 +38,8 @@ public class BerryClassTransformer implements ClassFileTransformer {
     public BerryClassTransformer (Instrumentation inst) {
         instance = this;
         this.inst = inst;
+        ByteCodeTransformer rmp = (loader, name, clazz, domain, code) -> this.remap (loader, name, clazz, domain, code);
+        this.all.addVertex (new Graph.Vertex ("berry::remap", rmp));
     }
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
         // DO NOT TRANSFORM THESE!
@@ -50,6 +52,20 @@ public class BerryClassTransformer implements ClassFileTransformer {
                 buffer = con.transform (loader, name, clazz, domain, buffer);
             } catch (IOException e) {
                 System.err.println (String.format ("[JA] Failed to transform class %s using %s", name, consumer.getClass () .getName ()));
+            }
+        }
+        return buffer;
+    }
+    // Remapper
+    // Remappers should accept nullable loader, clazz and domain
+    public final Graph remapper = new Graph ();
+    public byte[] remap (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
+        for (var consumer : remapper.sorted ()) {
+            try {
+                var con = (ByteCodeTransformer) (remapper.getVertices () .get (consumer) .getValue ());
+                buffer = con.transform (loader, name, clazz, domain, buffer);
+            } catch (IOException e) {
+                System.err.println (String.format ("[JA] Failed to remap class %s using %s", name, consumer.getClass () .getName ()));
             }
         }
         return buffer;
