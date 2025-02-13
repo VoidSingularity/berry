@@ -13,7 +13,7 @@
             "dep": [ "loader", "deobfuscate", "download_dependencies", "download_bundled" ],
             "cps": [
                 "runtime/",
-                ".cache/libs/",
+                "~/.berry/libraries/",
                 ".cache/client.jar"
             ],
             "source": "builtins",

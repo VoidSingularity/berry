@@ -50,6 +50,14 @@ def download_resource (url, local, reuse=True, sha1=None, retry=10, root='.cache
             return True
     except Exception as e: print (e)
 
+def mkrecursive (name: str):
+    name = os.path.expanduser (name.replace ('/', os.sep))
+    if not name.endswith (os.sep): name += os.sep
+    if os.path.exists (name): return
+    par = name.rsplit (os.sep, 2) [0] + os.sep
+    if not os.path.exists (par): mkrecursive (par)
+    os.mkdir (name)
+
 def check_rule (rules): # Return true if passed
     flag = False
     for rule in rules:
@@ -87,10 +95,8 @@ def download_minecraft (projectjson, properties):
     cl.close ()
     cldl = cljson ['downloads'] ['client']
     download_resource (cldl ['url'], 'client_official.jar', True, cldl ['sha1'])
-    if not os.path.exists ('.cache/game'): os.mkdir ('.cache/game')
-    if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
-    if not os.path.exists ('.cache/server'): os.mkdir ('.cache/server')
-    if not os.path.exists ('.cache/server/mods'): os.mkdir ('.cache/server/mods')
+    mkrecursive ('.cache/game/mods/')
+    mkrecursive ('.cache/server/mods/')
     svdl = cljson ['downloads'] ['server']
     download_resource (svdl ['url'], 'server/server_une.jar', True, svdl ['sha1'])
     # Extract
@@ -131,7 +137,8 @@ def download_dependencies (projectjson, properties):
     cl = open ('.cache/client.json', 'w')
     json.dump (cljson, cl)
     cl.close ()
-    if not os.path.exists ('.cache/libs'): os.mkdir ('.cache/libs')
+    libroot = os.path.expanduser ('~/.berry/libraries/')
+    mkrecursive (libroot)
     for lib in cljson ['libraries']:
         name = lib ['name'] .split (':')
         if len (name) == 4: # Natives
@@ -139,7 +146,10 @@ def download_dependencies (projectjson, properties):
             rules = lib ['rules']
             if not check_rule (rules): continue
         artifact = lib ['downloads'] ['artifact']
-        if download_resource (artifact ['url'], f'libs/{artifact ["path"] .split ("/") [-1]}', True, artifact ['sha1']):
+        pth = f'{libroot}{artifact ["path"]}'
+        pd = pth.rsplit ('/', 1) [0]
+        mkrecursive (pd)
+        if download_resource (artifact ['url'], pth, True, artifact ['sha1'], root=''):
             print (f'Successfully downloaded {lib ["name"]}')
         else:
             print (f'{lib ["name"]} already exists. Skipping.')
@@ -150,10 +160,8 @@ def download_assets (projectjson, properties):
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
-    if not os.path.exists (f'{hb}/.berry'): os.mkdir (f'{hb}/.berry')
-    if not os.path.exists (f'{hb}/.berry/assets'): os.mkdir (f'{hb}/.berry/assets')
-    if not os.path.exists (f'{hb}/.berry/assets/objects'): os.mkdir (f'{hb}/.berry/assets/objects')
-    if not os.path.exists (f'{hb}/.berry/assets/indexes'): os.mkdir (f'{hb}/.berry/assets/indexes')
+    mkrecursive ('~/.berry/assets/objects/')
+    mkrecursive ('~/.berry/assets/indexes/')
     ai = cljson ['assetIndex']
     download_resource (ai ['url'], f'assets/indexes/{ai["id"]}.json', True, ai ['sha1'], root=f'{hb}/.berry/')
     index = open (f'{hb}/.berry/assets/indexes/{ai["id"]}.json')
@@ -163,7 +171,7 @@ def download_assets (projectjson, properties):
     for i in s:
         for j in s:
             if not os.path.exists (f'{hb}/.berry/assets/objects/{i}{j}'):
-                os.mkdir (f'{hb}/.berry/assets/objects/{i}{j}')
+                mkrecursive (f'~/.berry/assets/objects/{i}{j}')
     for obji in indexjson ['objects']:
         obj = indexjson ['objects'] [obji]
         if download_resource (
@@ -195,7 +203,7 @@ def download_bundled (projectjson, properties):
 def getpaths ():
     return (
         ['.cache/client.jar', '.cache/server/server.jar'],
-        ['.cache/libs/', '.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', 'libs/']
+        ['.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', 'libs/', os.path.expanduser ('~/.berry/libraries/')]
     )
 
 # Setup Intellij Workspace
@@ -247,7 +255,7 @@ def setup_intellij (projectjson, properties):
             </CLASSES>
             <JAVADOC />
             <SOURCES />
-            <jarDirectory url="file://$MODULE_DIR$/{i}" recursive="false" />
+            <jarDirectory url="file://$MODULE_DIR$/{i}" recursive="true" />
             </library>
             </orderEntry>
             '''
@@ -266,7 +274,9 @@ def setup_vscode (projectjson, properties):
     s = set (li)
     p = getpaths ()
     for i in p [0]: s.add (i)
-    for i in p [1]: s.add (i + '*.jar')
+    for i in p [1] [:-1]: s.add (i + '*.jar')
+    # hack impl
+    s.add (os.path.expanduser ('~/.berry/libraries/**/*.jar'))
     stjson ['java.project.referencedLibraries'] = list (s)
     li = stjson.get ('java.project.sourcePaths', [])
     s = set (li)
@@ -289,8 +299,7 @@ def parsemodbundle (loc):
 # Either download (for mods) or just setup (for loader dev)
 def setup_berry (projectjson, properties):
     bv = properties.get ('berry_version')
-    if not os.path.exists ('.cache'): os.mkdir ('.cache')
-    if not os.path.exists ('.cache/berry'): os.mkdir ('.cache/berry')
+    mkrecursive ('.cache/berry')
     if bv is not None:
         li = ['agent', 'loader', 'builtins']
         srv = xmlrpc.client.ServerProxy ('http://localhost:19922')
@@ -314,9 +323,8 @@ def setup_berry (projectjson, properties):
         for i in os.listdir ('.cache/bundled'): os.remove ('.cache/bundled/' + i)
         parsemodbundle ('.cache/berry/builtins.jar')
         if os.path.exists ('.cache/game/mods/builtins.jar'): os.remove ('.cache/game/mods/builtins.jar')
-        if not os.path.exists ('.cache/game'): os.mkdir ('.cache/game')
-        if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
-        if not os.path.exists ('.cache/extramods'): os.mkdir ('.cache/extramods')
+        mkrecursive ('.cache/game/mods')
+        mkrecursive ('.cache/extramods')
         fcopy ('.cache/berry/builtins.jar', '.cache/extramods/builtins.jar')
     else:
         if os.path.exists ('.cache/berry/loader.jar'): os.remove ('.cache/berry/loader.jar')
@@ -327,7 +335,7 @@ def setup_berry (projectjson, properties):
 # Run Minecraft Client
 def run_client (projectjson, properties):
     if os.path.exists ('.cache/game/mods'): shutil.rmtree ('.cache/game/mods')
-    if not os.path.exists ('.cache/game/mods'): os.mkdir ('.cache/game/mods')
+    mkrecursive ('.cache/game/mods')
     if os.path.exists ('.cache/extramods'):
         for fn in os.listdir ('.cache/extramods'):
             fcopy (f'.cache/extramods/{fn}', f'.cache/game/mods/{fn}')
@@ -336,9 +344,19 @@ def run_client (projectjson, properties):
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
-    ld = os.listdir ('.cache/libs/')
-    cps = os.pathsep.join ([f'../libs/{i}' for i in ld] + ['../client.jar', '../berry/loader.jar'])
-    if not os.path.exists ('.cache/natives'): os.mkdir ('.cache/natives')
+    cps = ['../client.jar', '../berry/loader.jar']
+    libroot = os.path.expanduser ('~/.berry/libraries/')
+    for lib in cljson ['libraries']:
+        name = lib ['name'] .split (':')
+        if len (name) == 4: # Natives
+            if name [3] in ['natives-macos', 'natives-windows-arm64', 'linux-aarch_64']: continue # We do not support these platforms now; wait for future updates
+            rules = lib ['rules']
+            if not check_rule (rules): continue
+        artifact = lib ['downloads'] ['artifact']
+        pth = f'{libroot}{artifact ["path"]}'
+        cps.append (pth)
+    cps = os.pathsep.join (cps)
+    mkrecursive ('.cache/natives')
     vars = {
         'classpath': cps,
         'natives_directory': '../natives/',
@@ -349,13 +367,18 @@ def run_client (projectjson, properties):
         'game_directory': './',
         'assets_root': os.path.expanduser ('~/.berry/assets/'),
         'assets_index_name': cljson ['assetIndex'] ['id'],
-        'auth_uuid': '01234567-89ab-cdef-0123-456789abcdef',
+        'auth_uuid': '0123456789abcdef0123456789abcdef',
         'auth_access_token': 'aa',
         'clientid': 'berry',
         'auth_xuid': 'bb',
-        'user_type': 'cc',
+        'user_type': 'msa',
         'version_type': 'Berry'
     }
+    # Is that only for skin?
+    if os.path.isfile ('auth.json'):
+        auth = json.load (open ('auth.json'))
+        vars ['auth_player_name'] = auth ['name']
+        vars ['auth_uuid'] = auth ['uuid']
     args = cljson ['arguments']
     jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true']
     for jvmarg in args ['jvm']:
@@ -374,9 +397,8 @@ def run_client (projectjson, properties):
 
 # Run Minecraft Server
 def run_server (projectjson, properties):
-    if not os.path.exists ('.cache/server'): os.mkdir ('.cache/server')
     if os.path.exists ('.cache/server/mods'): shutil.rmtree ('.cache/server/mods')
-    if not os.path.exists ('.cache/server/mods'): os.mkdir ('.cache/server/mods')
+    mkrecursive ('.cache/server/mods')
     if os.path.exists ('.cache/extramods'):
         for fn in os.listdir ('.cache/extramods'):
             fcopy (f'.cache/extramods/{fn}', f'.cache/server/mods/{fn}')

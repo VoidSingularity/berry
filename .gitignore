@@ -9,3 +9,4 @@ __pycache__/
 runtime/
 dists/
 berry.iml
+auth.json

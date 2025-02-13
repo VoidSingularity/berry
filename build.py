@@ -51,10 +51,11 @@ def clean_build ():
 built = set ()
 
 def lsrecursive (root, d = ''):
-    ret = [d]
+    ret = []
     for f in os.listdir (root + d):
         if os.path.isdir (root + d + f):
             ret += lsrecursive (root, d + f + os.sep)
+        else: ret.append (d + f)
     return ret
 
 def build (name, pkg):
@@ -67,31 +68,28 @@ def build (name, pkg):
     cps = pkg.get ("cps")
     if cps is not None:
         for cp in cps:
+            cp = os.path.expanduser (cp)
             if os.path.isdir (cp):
-                for l in os.listdir (cp):
+                for l in lsrecursive (cp):
                     opt += f'{os.pathsep}{cp}{l}'
             else: opt += f'{os.pathsep}{cp}'
     srcpth = f'src/{pkg ["source"]}/'
     lr = lsrecursive (srcpth)
     lo = []
     for l in lr:
-        b = os.listdir (srcpth + l)
-        for c in b:
-            if c.endswith ('.java'):
-                lo.append (srcpth + l + c)
+        if l.endswith ('.java'):
+            lo.append (srcpth + l)
+    shutil.rmtree ('build')
     syswrap (f'javac {opt} -s {srcpth} -d build {" ".join (lo)}')
     # Some sort of issue related to the jar command
     zip = zipfile.ZipFile (f'output/{name}.jar', 'w')
-    for l in lsrecursive (f'src/{pkg ["source"]}/'):
-        b = os.listdir ('build/' + l)
-        for c in b:
-            if c.endswith ('.class'):
-                f = open (f'build/{l}{c}', 'rb')
-                g = zip.open (l + c, 'w')
-                g.write (f.read ())
-                f.close ()
-                g.close ()
-                print (f"Added file {l}{c} to jar file {name}.jar")
+    for c in lsrecursive ('build/'):
+        f = open (f'build/{c}', 'rb')
+        g = zip.open (c, 'w')
+        g.write (f.read ())
+        f.close ()
+        g.close ()
+        print (f"Added file {c} to jar file {name}.jar")
     mf = pkg.get ("manifest")
     if mf is not None:
         f = open (f'manifest/{mf}.mf', 'rb')
