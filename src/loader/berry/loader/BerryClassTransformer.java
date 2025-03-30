@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.HashSet;
+import java.util.Set;
 
 import berry.utils.Graph;
 
@@ -41,11 +43,17 @@ public class BerryClassTransformer implements ClassFileTransformer {
         ByteCodeTransformer rmp = (loader, name, clazz, domain, code) -> this.remap (loader, name, clazz, domain, code);
         this.all.addVertex (new Graph.Vertex ("berry::remap", rmp));
     }
+    public final Set <String> trans_blacklist = new HashSet <> ();
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
         // DO NOT TRANSFORM THESE!
         if (name.startsWith ("java") || name.startsWith ("jdk") || name.startsWith ("sun")) return null;
         // THEY SHOULD NOT BE TRANSFORMED!
         if (name.startsWith ("berry/utils")) return null;
+        // Blacklist. Do not transform them.
+        if (trans_blacklist.contains (name)) {
+            trans_blacklist.remove (name);
+            return buffer;
+        }
         for (var consumer : all.sorted ()) {
             try {
                 var con = (ByteCodeTransformer) (all.getVertices () .get (consumer) .getValue ());

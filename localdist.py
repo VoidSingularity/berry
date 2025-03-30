@@ -26,15 +26,13 @@
 # se to put the jars in the server. The server
 # will automatically update the version info.
 
-# TODO: FIX LOCALDIST!
-
 from xmlrpc.server import SimpleXMLRPCServer
 
 import hashlib, os, re, sys, threading
 if not os.path.exists ('dists'): os.mkdir ('dists')
 
 # Parse the current distributions.
-fmat = re.compile ('([A-Za-z0-9\\-]+)\\.(jar|py)\\-([a-f0-9]{64})')
+fmat = re.compile ('([A-Za-z0-9\\-]+)\\-([a-f0-9]{64}).jar')
 rels = {}
 for fn in os.listdir ('dists'):
     mo = re.match (fmat, fn)
@@ -56,30 +54,25 @@ for fn in os.listdir ('dists'):
 
 # Update
 def update ():
-    fo = open ('output/project_template.py', 'wb')
-    fi = open ('project_template.py', 'rb')
-    while len (val := fi.read (65536)): fo.write (val)
-    fi.close (); fo.close ()
-    fo = open ('output/build.py', 'wb')
-    fi = open ('build.py', 'rb')
-    while len (val := fi.read (65536)): fo.write (val)
-    fi.close (); fo.close ()
+    os.system ("python3 build.py build_all")
     for fn in os.listdir ('output'):
+        if not fn.endswith (".jar"): continue
+        jn = fn [:-4]
         # Calculate hash
         fh = open ('output/' + fn, 'rb')
         ho = hashlib.sha256 ()
         while len (val := fh.read (65536)): ho.update (val)
         # Copy file
-        if fn in rels and rels [fn] == f'{fn}-{ho.hexdigest()}':
-            print ("Error: file", fn, "is already distributed!", file=sys.stderr)
+        if jn in rels and rels [jn] == f'{jn}-{ho.hexdigest()}.jar':
+            print ("Error: jar", jn, "is already distributed!", file=sys.stderr)
             continue
-        if not os.path.exists (f'dists/{fn}-{ho.hexdigest()}'):
-            fo = open (f'dists/{fn}-{ho.hexdigest()}', 'wb')
+        if not os.path.exists (f'dists/{jn}-{ho.hexdigest()}.jar'):
+            fo = open (f'dists/{jn}-{ho.hexdigest()}.jar', 'wb')
             fi = open ('output/' + fn, 'rb')
             while len (val := fi.read (65536)): fo.write (val)
             fo.close (); fi.close ()
         # Deploy
-        rels [fn] = f'{fn}-{ho.hexdigest()}'
+        rels [jn] = f'{jn}-{ho.hexdigest()}.jar'
 
 # Query
 def fexist (jarname: str): return jarname in rels

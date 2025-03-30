@@ -48,7 +48,13 @@ public final class BerryLoader {
         new BerryLoader (args);
     }
     private static record JarStringInfo (JarContainer jar, String info, String name) {}
+    private static Class <?> forname (String name) throws ClassNotFoundException {
+        // berry.loader.BerryLoader is loaded by app cl,
+        // but we want to search classes in our system cl
+        return ClassLoader.getSystemClassLoader () .loadClass (name);
+    }
     private BerryLoader (String[] args) {
+        for (var str : System.getProperty ("berry.cps") .split (File.pathSeparator)) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (str);
         indev = "true" .equals (System.getProperty ("berry.indev"));
         int i;
         String moddir = null;
@@ -91,7 +97,7 @@ public final class BerryLoader {
             JarContainer jar = info.jar;
             String cls = info.info;
             try {
-                Class <?> basemod = Class.forName (cls);
+                Class <?> basemod = forname (cls);
                 Constructor <?> c = basemod.getConstructor ();
                 BerryModInitializer initializer = (BerryModInitializer) c.newInstance ();
                 initializer.preinit (init, jar, info.name);
@@ -107,11 +113,12 @@ public final class BerryLoader {
             }
         }
         for (String name : init.sorted ()) {
+            System.out.println (String.format ("Initializing mod %s...", name));
             ins.get (name) .initialize (argv);
             System.out.println (String.format ("Initialized mod %s!", name));
         }
         try {
-            Class <?> main = Class.forName (args [0]);
+            Class <?> main = forname (args [0]);
             MethodHandle handle = MethodHandles.lookup () .findStatic (main, "main", MethodType.methodType (Void.TYPE, String[].class)) .asFixedArity ();
             handle.invoke (argv);
         } catch (ClassNotFoundException exception) {

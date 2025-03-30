@@ -344,7 +344,7 @@ def run_client (projectjson, properties):
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
-    cps = ['../client.jar', '../berry/loader.jar']
+    cps = ['../client.jar']
     libroot = os.path.expanduser ('~/.berry/libraries/')
     for lib in cljson ['libraries']:
         name = lib ['name'] .split (':')
@@ -358,7 +358,7 @@ def run_client (projectjson, properties):
     cps = os.pathsep.join (cps)
     mkrecursive ('.cache/natives')
     vars = {
-        'classpath': cps,
+        'classpath': '../berry/loader.jar',
         'natives_directory': '../natives/',
         'launcher_name': '"BML Test"',
         'launcher_version': '1.0.0',
@@ -380,7 +380,7 @@ def run_client (projectjson, properties):
         vars ['auth_player_name'] = auth ['name']
         vars ['auth_uuid'] = auth ['uuid']
     args = cljson ['arguments']
-    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true']
+    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps]
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
             jvmargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], jvmarg))

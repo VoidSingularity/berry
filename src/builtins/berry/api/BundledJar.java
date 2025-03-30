@@ -23,10 +23,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Scanner;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
 import berry.loader.BerryClassTransformer;
+import berry.loader.BerryLoader;
 import berry.loader.JarContainer;
 
 public class BundledJar {
@@ -88,5 +90,22 @@ public class BundledJar {
         while ((len = stream.read (buffer)) > 0) out.write (buffer, 0, len);
         out.close (); stream.close ();
         BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
+    }
+    public static void addBundled (JarContainer jar) {
+        var file = jar.file ();
+        var entry = file.getEntry ("META-INF/bundled_jars");
+        if (entry != null) {
+            try (InputStream is = file.getInputStream (entry); Scanner scanner = new Scanner (is)) {
+                while (scanner.hasNextLine ()) {
+                    String line = scanner.nextLine () .strip ();
+                    if (line.isEmpty ()) continue;
+                    if (line.startsWith ("#")) continue;
+                    BundledJar.addBundled (BerryLoader.getGameDirectory (), jar, line);
+                }
+            } catch (IOException e) {
+                System.err.println ("[BERRY/BUILTIN] Unexpected failure while reading bundle info!");
+                e.printStackTrace ();
+            }
+        }
     }
 }
