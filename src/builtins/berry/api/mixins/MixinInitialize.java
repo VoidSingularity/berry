@@ -49,7 +49,7 @@ public class MixinInitialize {
                 return null;
             }
         };
-        var graph = BerryClassTransformer.instance () .all;
+        var graph = BerryClassTransformer.instance () .all.graph;
         var vmixin = new Graph.Vertex ("berry::mixin", transformer);
         var vremap = graph.getVertices () .get ("berry::remap");
         graph.addVertex (vmixin);

@@ -53,7 +53,7 @@ public class BerryMixinService implements IMixinService, IClassProvider, IClassB
         InputStream stream = BuiltinAPIBootstrap.class.getClassLoader () .getResourceAsStream (slash + ".class");
         byte[] data = stream.readAllBytes ();
         stream.close ();
-        data = BerryClassTransformer.instance () .remap (null, slash, null, null, data);
+        data = BerryClassTransformer.instance () .remapper.transform (null, slash, null, null, data);
         ClassNode node = new ClassNode ();
         ClassReader reader = new ClassReader (data);
         reader.accept (node, flags);

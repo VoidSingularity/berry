@@ -19,7 +19,9 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import berry.utils.Graph;
@@ -28,11 +30,35 @@ public class BerryClassTransformer implements ClassFileTransformer {
     public static interface ByteCodeTransformer {
         public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] code) throws IOException;
     }
-    public final Graph all = new Graph ();
+    public static class GraphTransformer implements ByteCodeTransformer {
+        public final Graph graph = new Graph ();
+        public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
+            for (var consumer : graph.sorted ()) {
+                try {
+                    var con = (ByteCodeTransformer) (graph.getVertices () .get (consumer) .getValue ());
+                    byte[] next = con.transform (loader, name, clazz, domain, buffer);
+                    if (next != null) buffer = next;
+                } catch (IOException e) {
+                    System.err.println (String.format ("[JA] Failed to remap class %s using %s", name, consumer.getClass () .getName ()));
+                }
+            }
+            return buffer;
+        }
+    }
+    // All in this
+    public final GraphTransformer all = new GraphTransformer ();
+    // Remapper
+    // Remappers should accept nullable loader, clazz and domain
+    public final GraphTransformer remapper = new GraphTransformer ();
+    // Monitor
+    // Monitors must be read-only
+    public final List <ByteCodeTransformer> monitor = new ArrayList <> ();
+    // Instance
     private static BerryClassTransformer instance;
     public static BerryClassTransformer instance () {
         return instance;
     }
+    // Instrumentation
     private final Instrumentation inst;
     public static Instrumentation instrumentation () {
         return instance.inst;
@@ -40,8 +66,15 @@ public class BerryClassTransformer implements ClassFileTransformer {
     public BerryClassTransformer (Instrumentation inst) {
         instance = this;
         this.inst = inst;
-        ByteCodeTransformer rmp = (loader, name, clazz, domain, code) -> this.remap (loader, name, clazz, domain, code);
-        this.all.addVertex (new Graph.Vertex ("berry::remap", rmp));
+        var vremap = new Graph.Vertex ("berry::remap", this.remapper);
+        this.all.graph.addVertex (vremap);
+        ByteCodeTransformer moni = (loader, name, clazz, domain, buffer) -> {
+            for (ByteCodeTransformer trans : monitor) trans.transform (loader, name, clazz, domain, buffer);
+            return buffer;
+        };
+        var vmonitor = new Graph.Vertex ("berry::monitor", moni);
+        this.all.graph.addVertex (vmonitor);
+        this.all.graph.addEdge (null, vremap, vmonitor, null);
     }
     public final Set <String> trans_blacklist = new HashSet <> ();
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
@@ -54,28 +87,6 @@ public class BerryClassTransformer implements ClassFileTransformer {
             trans_blacklist.remove (name);
             return buffer;
         }
-        for (var consumer : all.sorted ()) {
-            try {
-                var con = (ByteCodeTransformer) (all.getVertices () .get (consumer) .getValue ());
-                buffer = con.transform (loader, name, clazz, domain, buffer);
-            } catch (IOException e) {
-                System.err.println (String.format ("[JA] Failed to transform class %s using %s", name, consumer.getClass () .getName ()));
-            }
-        }
-        return buffer;
-    }
-    // Remapper
-    // Remappers should accept nullable loader, clazz and domain
-    public final Graph remapper = new Graph ();
-    public byte[] remap (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
-        for (var consumer : remapper.sorted ()) {
-            try {
-                var con = (ByteCodeTransformer) (remapper.getVertices () .get (consumer) .getValue ());
-                buffer = con.transform (loader, name, clazz, domain, buffer);
-            } catch (IOException e) {
-                System.err.println (String.format ("[JA] Failed to remap class %s using %s", name, consumer.getClass () .getName ()));
-            }
-        }
-        return buffer;
+        return all.transform (loader, name, clazz, domain, buffer);
     }
 }
