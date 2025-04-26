@@ -409,12 +409,13 @@ def run_server (projectjson, properties):
         if cps [i] .split ('/') [-1] .startswith ('asm'):
             cps.pop (i)
             break
-    cps += ['../berry/loader.jar', 'server.jar']
+    cps += ['server.jar']
     mc = open ('.cache/server/META-INF/main-class') .read () .strip ()
     os.chdir ('.cache/server/')
     syswrap (
-        'java -javaagent:../berry/agent.jar -Dberry.side=SERVER -Dberry.indev=true'
-        f' -cp {os.pathsep.join (cps)}'
+        'java -javaagent:../berry/agent.jar -Dberry.side=SERVER -Dberry.indev=true -Djava.system.class.loader=berry.loader.BerryClassLoader'
+        f' -Dberry.cps={os.pathsep.join (cps)}'
+        f' -cp ../berry/loader.jar'
         f' berry.loader.BerryLoader {mc} --nogui'
     )
     os.chdir ('../../')
