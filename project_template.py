@@ -354,6 +354,15 @@ def setup_berry (projectjson, properties):
         os.rename ('output/loader.jar', '.cache/berry/loader.jar')
         os.rename ('output/agent.jar', '.cache/berry/agent.jar')
 
+# Parse extra mods
+def extramods (projectjson, properties):
+    if not os.path.exists ('.cache/extramods'): os.mkdir ('.cache/extramods')
+    emods = projectjson.get ('extramods')
+    if emods is None: return
+    for mod in emods:
+        url = emods [mod] .format (**properties)
+        getfile (url, mod, f'.cache/extramods/{mod}')
+
 # Run Minecraft Client
 def run_client (projectjson, properties):
     if os.path.exists ('.cache/game/mods'): shutil.rmtree ('.cache/game/mods')
