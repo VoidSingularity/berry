@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import hashlib, json, os, platform, re, shutil, urllib.request, xmlrpc.client, zipfile
+import hashlib, json, os, platform, re, shutil, sys, urllib.request, xmlrpc.client, zipfile
 
 def syswrap (cmd):
     print ('$', cmd)
@@ -38,7 +38,7 @@ def download_resource (url, local, reuse=True, sha1=None, retry=10, root='.cache
         if sha1 is not None and not verify_sha1 (local, sha1, root): return download_resource (url, local, False, sha1)
         return False
     try:
-        for i in range (retry):
+        for _ in range (retry):
             req = urllib.request.Request (url)
             req.add_header ('User-Agent', 'BerryBuild')
             rmt = urllib.request.urlopen (req)
@@ -57,6 +57,41 @@ def mkrecursive (name: str):
     par = name.rsplit (os.sep, 2) [0] + os.sep
     if not os.path.exists (par): mkrecursive (par)
     os.mkdir (name)
+
+def gfg (url: str, name: str, path: str):
+    # name is unused
+    download_resource (url, path, root='./')
+
+try:
+    if '--offline' in sys.argv: raise FileNotFoundError ()
+    dist = json.load (open ('dist.py.json'))
+    print ("Localdist enabled")
+    # https://github.com/azure-bluet/dist.py
+    class ServerConf:
+        def __init__ (self, addr: str, pswd: str):
+            self.src = xmlrpc.client.ServerProxy (addr)
+            self.pswd = pswd
+        def download (self, name: str, path: str) -> None:
+            f = open (path, 'wb')
+            f.write (self.src.read (self.pswd, [name]) [name] .data)
+            f.close ()
+        def upload (self, name: str, path: str) -> None:
+            f = open (path, 'rb')
+            data = f.read ()
+            f.close ()
+            self.src.write (self.pswd, {name: xmlrpc.client.Binary (data)})
+    conf = ServerConf (dist ['addr'], dist ['pswd'])
+    def getfile (url: str, name: str, path: str):
+        try:
+            conf.download (name, path)
+            if not os.path.exists (f'{path}.localdist'): open (f'{path}.localdist', 'w') .close ()
+        except ConnectionRefusedError:
+            # Remove old files
+            if os.path.exists (f'{path}.localdist'):
+                os.remove (path)
+                os.remove (f'{path}.localdist')
+            gfg (url, name, path)
+except FileNotFoundError: getfile = gfg
 
 def check_rule (rules): # Return true if passed
     flag = False
@@ -302,23 +337,10 @@ def setup_berry (projectjson, properties):
     mkrecursive ('.cache/berry')
     if bv is not None:
         li = ['agent', 'loader', 'builtins']
-        srv = xmlrpc.client.ServerProxy ('http://localhost:19922')
         for l in li:
-            try:
-                bn = srv.fquery (l)
-                if isinstance (bn, xmlrpc.client.Binary): bn = bn.data
-                f = open (f'.cache/berry/{l}.jar', 'wb')
-                f.write (bn)
-                f.close ()
-                if not os.path.exists (f'.cache/berry/{l}.localdist'): open (f'.cache/berry/{l}.localdist', 'w') .close ()
-            except ConnectionRefusedError:
-                # Download from releases
-                if os.path.exists (f'.cache/berry/{l}.localdist'):
-                    os.remove (f'.cache/berry/{l}.jar')
-                    os.remove (f'.cache/berry/{l}.localdist')
-                if os.path.exists (f'.cache/berry/{l}.jar'): continue
-                url = properties ['berry_repo'] .format (version=bv, jarname=l)
-                download_resource (url, f'berry/{l}.jar')
+            name = l + '.jar'
+            url = properties ['berry_repo'] .format (version=bv, jarname=l)
+            getfile (url, name, f'.cache/berry/{name}')
         if not os.path.exists ('.cache/bundled'): os.mkdir ('.cache/bundled')
         for i in os.listdir ('.cache/bundled'): os.remove ('.cache/bundled/' + i)
         parsemodbundle ('.cache/berry/builtins.jar')
@@ -419,3 +441,40 @@ def run_server (projectjson, properties):
         f' berry.loader.BerryLoader {mc} --nogui'
     )
     os.chdir ('../../')
+
+def build_resources (projectjson, properties):
+    if not os.path.exists ('output'): os.mkdir ('output')
+    # Scan packs
+    packs = os.listdir ('.cache/game/resourcepacks')
+    # For each pack
+    for pack in packs:
+        if pack.endswith ('.zip'): pass
+        zip = zipfile.ZipFile (f'output/resourcepack_{pack}.zip', 'w')
+        # For each file in the pack
+        rd = f'.cache/game/resourcepacks/{pack}'
+        for root, dirs, files in os.walk (rd):
+            for file in files:
+                path = os.path.join (root, file)
+                zip.write (path, os.path.relpath (path, rd))
+        zip.close ()
+
+def build_datapacks (projectjson, properties):
+    if not os.path.exists ('output'): os.mkdir ('output')
+    # Scan packs. The world name only supports 'world' for now
+    packs = os.listdir ('.cache/server/world/datapacks')
+    # For each pack
+    for pack in packs:
+        if pack.endswith ('.zip'): pass
+        zip = zipfile.ZipFile (f'output/datapack_{pack}.zip', 'w')
+        # For each file in the pack
+        rd = f'.cache/server/world/datapacks/{pack}'
+        for root, dirs, files in os.walk (rd):
+            for file in files:
+                path = os.path.join (root, file)
+                zip.write (path, os.path.relpath (path, rd))
+        zip.close ()
+
+def localdist (projectjson, properties):
+    lcd = projectjson.get ('localdist')
+    for fn in lcd:
+        conf.upload (lcd [fn], fn)

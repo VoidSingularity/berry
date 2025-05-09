@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import berry.utils.Graph;
+import berry.utils.StringSorter;
 
 public final class BerryLoader {
     private static String side;
@@ -91,7 +91,7 @@ public final class BerryLoader {
         for (i=1; i<args.length; i++) argv [i-1] = args [i];
         sargs = argv;
         entry = args [0];
-        Graph init = new Graph ();
+        StringSorter init = new StringSorter ();
         Map <String, BerryModInitializer> ins = new HashMap <> ();
         for (JarStringInfo info : bmc) {
             JarContainer jar = info.jar;
@@ -104,15 +104,17 @@ public final class BerryLoader {
                 ins.put (info.name, initializer);
             } catch (ClassNotFoundException e) {
                 System.err.println (String.format ("[ERROR] Cannot find class %s", cls));
+                e.printStackTrace ();
             } catch (ClassCastException e) {
                 System.err.println (String.format ("[ERROR] %s does not implement berry.loader.BerryModInitializer!", cls));
+                e.printStackTrace ();
             } catch (NoSuchMethodException e) {}
             catch (IllegalAccessException e) {}
             catch (Throwable throwable) {
                 throw new RuntimeException (throwable);
             }
         }
-        for (String name : init.sorted ()) {
+        for (String name : init.sort ()) {
             System.out.println (String.format ("Initializing mod %s...", name));
             ins.get (name) .initialize (argv);
             System.out.println (String.format ("Initialized mod %s!", name));
@@ -123,10 +125,13 @@ public final class BerryLoader {
             handle.invoke (argv);
         } catch (ClassNotFoundException exception) {
             System.err.println (String.format ("Unable to load main class %s. Exiting.", args [0]));
+            exception.printStackTrace ();
         } catch (NoSuchMethodException exception) {
             System.err.println (String.format ("Unable to find void main(String[]) in main class. Exiting."));
+            exception.printStackTrace ();
         } catch (IllegalAccessException exception) {
             System.err.println (String.format ("Unable to access void main(String[]) in main class. Exiting."));
+            exception.printStackTrace ();
         } catch (Throwable throwable) {
             throw new RuntimeException (throwable);
         }

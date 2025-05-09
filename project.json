@@ -157,6 +157,26 @@
         "installer": {
             "dep": [ "_installer" ],
             "function": "installer"
+        },
+        "build_resources": {
+            "function": "build_resources",
+            "repeat_everytime": false
+        },
+        "build_datapacks": {
+            "function": "build_datapacks",
+            "repeat_everytime": false
+        },
+        "localdist": {
+            "dep": [
+                "build_all"
+            ],
+            "function": "localdist",
+            "repeat_everytime": false
         }
+    },
+    "localdist": {
+        "output/agent.jar": "agent.jar",
+        "output/builtins.jar": "builtins.jar",
+        "output/loader.jar": "loader.jar"
     }
 }

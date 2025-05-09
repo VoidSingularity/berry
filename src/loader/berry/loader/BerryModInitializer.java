@@ -15,11 +15,9 @@
 
 package berry.loader;
 
-import berry.utils.Graph;
+import berry.utils.StringSorter;
 
 public interface BerryModInitializer {
     public void initialize (String[] argv);
-    default void preinit (Graph graph, JarContainer jar, String name) {
-        graph.addVertex (new Graph.Vertex (name));
-    };
+    default void preinit (StringSorter sorter, JarContainer jar, String name) {}
 }

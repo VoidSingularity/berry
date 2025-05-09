@@ -18,15 +18,16 @@ package berry.api;
 import berry.api.mixins.MixinInitialize;
 import berry.loader.BerryModInitializer;
 import berry.loader.JarContainer;
-import berry.utils.Graph;
+import berry.utils.StringSorter;
 
 public class BuiltinAPIBootstrap implements BerryModInitializer {
     private static JarContainer container;
     public static JarContainer getContainer () {
         return container;
     }
-    public void preinit (Graph graph, JarContainer jar, String name) {
-        graph.addVertex (new Graph.Vertex (name));
+    @Override
+    public void preinit (StringSorter sorter, JarContainer jar, String name) {
+        sorter.addValue (name);
         container = jar;
     }
     public void initialize (String[] argv) {
