@@ -375,7 +375,7 @@ def run_client (projectjson, properties):
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
-    cps = ['../client.jar']
+    cps = []
     libroot = os.path.expanduser ('~/.berry/libraries/')
     for lib in cljson ['libraries']:
         name = lib ['name'] .split (':')
@@ -411,7 +411,7 @@ def run_client (projectjson, properties):
         vars ['auth_player_name'] = auth ['name']
         vars ['auth_uuid'] = auth ['uuid']
     args = cljson ['arguments']
-    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps]
+    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps, '-Dberry.mcjar=../client.jar']
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
             jvmargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
@@ -427,6 +427,7 @@ def run_client (projectjson, properties):
     os.chdir ('../../')
 
 # Run Minecraft Server
+# TODO: fx this
 def run_server (projectjson, properties):
     if os.path.exists ('.cache/server/mods'): shutil.rmtree ('.cache/server/mods')
     mkrecursive ('.cache/server/mods')

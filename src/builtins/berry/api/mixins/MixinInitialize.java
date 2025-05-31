@@ -37,8 +37,6 @@ public class MixinInitialize {
 		} catch (Exception e) {
 			throw new RuntimeException (e);
 		}
-        // hello world
-        Mixins.addConfiguration ("builtin_mixins.json");
         BerryClassTransformer.ByteCodeTransformer transformer = (loader, name, clazz, domain, code) -> {
             try {
                 name = name.replace ('/', '.');
