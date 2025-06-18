@@ -36,7 +36,7 @@ public class MinecraftJarTransformer {
     }
     public static void transform () {
         String orig = System.getProperty ("berry.mcjar");
-        String trans = BerryLoader.getGameDirectory () + "transformed.jar";
+        String trans = BerryLoader.getGameDirectory () + "__transformed.jar";
         try {
             ZipFile file = new ZipFile (orig);
             FileOutputStream os = new FileOutputStream (trans);
@@ -47,5 +47,6 @@ public class MinecraftJarTransformer {
         } catch (IOException e) {
             throw new RuntimeException (e);
         }
+        System.out.println ("[BERRY] Minecraft jar transformed");
     }
 }

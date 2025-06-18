@@ -10,19 +10,15 @@
             "manifest": "berryagent"
         },
         "builtins": {
-            "dep": [ "loader", "deobfuscate", "download_dependencies", "download_bundled" ],
+            "dep": [ "loader", "deobfuscate", "download_dependencies", "parse_external_libraries" ],
             "cps": [
-                "runtime/",
-                "~/.berry/libraries/",
+                ".cache/extlibs/",
+                "${CPS_GAME_LIBS}",
                 ".cache/client.jar"
             ],
             "source": "builtins",
             "manifest": "builtins",
             "extras": [
-                {
-                    "source": "runtime/",
-                    "destination": "bundled/"
-                },
                 {
                     "source": "manifest/builtins_services/",
                     "destination": "META-INF/services/"
@@ -32,8 +28,8 @@
                     "destination": "builtin_mixins.json"
                 },
                 {
-                    "source": ".cache/bundles",
-                    "destination": "META-INF/bundled_jars"
+                    "source": ".cache/external_libraries.json",
+                    "destination": "META-INF/external_libraries.json"
                 }
             ]
         },
@@ -52,14 +48,22 @@
                     "destination": "jars/builtins.jar"
                 },
                 {
+                    "source": "output/loader.jar",
+                    "destination": "jars/loader.jar"
+                },
+                {
                     "source": "libs/LICENSE-SpecialSource.md",
                     "destination": "META-INF/LICENSE-SpecialSource.md"
                 }
             ]
         }
     },
-    "bundled_libs": {
-        "builtins": [
+    "external_libraries": {
+        "generate": {
+            "path": "src/builtins/berry/api/ExternalLibrariesGenerated.java",
+            "class": "berry.api.ExternalLibrariesGenerated"
+        },
+        "urls": [
             "https://maven.fabricmc.net/net/fabricmc/sponge-mixin/0.15.4+mixin.0.8.7/sponge-mixin-0.15.4+mixin.0.8.7.jar",
             "https://maven.fabricmc.net/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar",
             "https://maven.fabricmc.net/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
@@ -97,8 +101,8 @@
             "function": "download_dependencies",
             "repeat_everytime": false
         },
-        "download_bundled": {
-            "function": "download_bundled",
+        "parse_external_libraries": {
+            "function": "parse_external_libraries",
             "repeat_everytime": false
         },
         "setup_intellij": {
@@ -106,7 +110,7 @@
                 "download_minecraft",
                 "deobfuscate",
                 "download_dependencies",
-                "download_bundled"
+                "parse_external_libraries"
             ],
             "function": "setup_intellij",
             "repeat_everytime": false
@@ -116,7 +120,7 @@
                 "download_minecraft",
                 "deobfuscate",
                 "download_dependencies",
-                "download_bundled"
+                "parse_external_libraries"
             ],
             "function": "setup_vscode",
             "repeat_everytime": false
@@ -178,5 +182,11 @@
         "output/agent.jar": "agent.jar",
         "output/builtins.jar": "builtins.jar",
         "output/loader.jar": "loader.jar"
-    }
+    },
+    "srcpaths": [
+        "src/agent/",
+        "src/builtins/",
+        "src/installer/",
+        "src/loader/"
+    ]
 }

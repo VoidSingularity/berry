@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import hashlib, json, os, platform, re, shutil, sys, urllib.request, xmlrpc.client, zipfile
+import hashlib, json, os, platform, random, re, shutil, sys, urllib.request, xmlrpc.client, zipfile
 
 def syswrap (cmd):
     print ('$', cmd)
@@ -189,6 +189,28 @@ def download_dependencies (projectjson, properties):
         else:
             print (f'{lib ["name"]} already exists. Skipping.')
 
+# Get jars path for libraries
+def get_libjars ():
+    cl = open ('.cache/client.json')
+    cljson = json.load (cl)
+    cl.close ()
+    libroot = os.path.expanduser ('~/.berry/libraries/')
+    jars = []
+    for lib in cljson ['libraries']:
+        name = lib ['name'] .split (':')
+        if len (name) == 4: # Natives
+            if name [3] in ['natives-macos', 'natives-windows-arm64', 'linux-aarch_64']: continue # We do not support these platforms now; wait for future updates
+            rules = lib ['rules']
+            if not check_rule (rules): continue
+        artifact = lib ['downloads'] ['artifact']
+        pth = f'{libroot}{artifact ["path"]}'
+        jars.append (pth)
+    return jars
+
+def cp_replace (projectjson, properties, ct):
+    if ct == 'CPS_GAME_LIBS': return os.pathsep.join (get_libjars ())
+    raise NotImplementedError
+
 # Download assets
 def download_assets (projectjson, properties):
     hb = os.path.expanduser ('~')
@@ -218,7 +240,7 @@ def download_assets (projectjson, properties):
         ): print (f'Successfully downloaded file {obji}')
         else: print (f'File {obji} already exists. Skipping.')
 
-# Download bundled jars for asm and mixin
+# Download bundled jars (deprecated, now you should use external libraries)
 processors = {}
 def download_bundled (projectjson, properties):
     li = projectjson ['bundled_libs']
@@ -228,6 +250,8 @@ def download_bundled (projectjson, properties):
     for ns in li:
         proc = processors [ns]
         for i in li [ns]:
+            i = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], i)
+            print ('Downloading from', i)
             download_resource (i, 'runtime/' + i.split ('/') [-1], False)
             proc (ns, i)
     if os.path.exists ('.cache/bundles'): os.remove ('.cache/bundles')
@@ -235,10 +259,51 @@ def download_bundled (projectjson, properties):
     for i in os.listdir ('runtime'): f.write (f'bundled/{i}\n')
     f.close ()
 
+# Parse external libraries
+chli = [chr (i) for i in range (ord ('a'), ord ('z') + 1)]
+def parse_external_libraries (projectjson, properties):
+    if os.path.exists ('.cache/extlibs'): shutil.rmtree ('.cache/extlibs')
+    os.mkdir ('.cache/extlibs')
+    extlibs = projectjson.get ('external_libraries')
+    if extlibs is None: return
+    # Download them first
+    urm = {}
+    for url in extlibs ['urls']:
+        url = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], url)
+        r = ''.join ([random.choice (chli) for i in range (32)])
+        urm [r] = url
+        print ('Downloading library from', url)
+        download_resource (url, f'extlibs/{r}.jar', False)
+    # Then, calculate hash
+    lih = []
+    for r in urm:
+        with open (f'.cache/extlibs/{r}.jar', 'rb') as f:
+            h = hashlib.sha1 (f.read ()) .hexdigest ()
+        lih.append ((h, urm [r]))
+    # Generate code
+    gen = extlibs ['generate']
+    with open (gen ['path'], 'w') as j:
+        cls: str = gen ['class']
+        pkg, cls = cls.rsplit ('.', 1)
+        j.write (f'package {pkg};\n\n')
+        j.write ('import java.net.URI;\n')
+        j.write ('import java.net.MalformedURLException;\nimport java.net.URISyntaxException;\n\n')
+        j.write ('import static berry.loader.BerryLoader.libraries;\n\n')
+        j.write (f'class {cls} {{\n')
+        j.write ('    static void init() throws URISyntaxException, MalformedURLException {\n')
+        for entry in lih:
+            j.write (f'        libraries.put("{entry [0]}", new URI("{entry [1]}").toURL());\n')
+        j.write ('    }\n}\n')
+    # For development: META-INF/external_libraries.json
+    js = {}
+    for entry in lih: js [entry [0]] = entry [1]
+    with open ('.cache/external_libraries.json', 'w') as f:
+        json.dump (js, f)
+
 def getpaths ():
     return (
         ['.cache/client.jar', '.cache/server/server.jar'],
-        ['.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', 'libs/', os.path.expanduser ('~/.berry/libraries/')]
+        ['.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', '.cache/extlibs/', 'extralibs/', 'libs/', os.path.expanduser ('~/.berry/libraries/')]
     )
 
 # Setup Intellij Workspace
@@ -311,12 +376,15 @@ def setup_vscode (projectjson, properties):
     for i in p [0]: s.add (i)
     for i in p [1] [:-1]: s.add (i + '*.jar')
     # hack impl
-    s.add (os.path.expanduser ('~/.berry/libraries/**/*.jar'))
+    for i in get_libjars (): s.add (i)
     stjson ['java.project.referencedLibraries'] = list (s)
     li = stjson.get ('java.project.sourcePaths', [])
-    s = set (li)
-    for name in projectjson ['packages']: s.add ('src/%s/' % name)
-    stjson ['java.project.sourcePaths'] = list (s)
+    if 'srcpaths' in projectjson:
+        s = projectjson ['srcpaths']
+    else:
+        s = []
+        for name in projectjson ['packages']: s.append ('src/%s/' % name)
+    stjson ['java.project.sourcePaths'] = s
     f = open ('.vscode/settings.json', 'w')
     json.dump (stjson, f)
     f.close ()
@@ -348,11 +416,23 @@ def setup_berry (projectjson, properties):
         mkrecursive ('.cache/game/mods')
         mkrecursive ('.cache/extramods')
         fcopy ('.cache/berry/builtins.jar', '.cache/extramods/builtins.jar')
+        jar_extlibs ('builtins.jar')
     else:
         if os.path.exists ('.cache/berry/loader.jar'): os.remove ('.cache/berry/loader.jar')
         if os.path.exists ('.cache/berry/agent.jar'): os.remove ('.cache/berry/agent.jar')
         os.rename ('output/loader.jar', '.cache/berry/loader.jar')
         os.rename ('output/agent.jar', '.cache/berry/agent.jar')
+
+# Parse external libraries from jar mods
+def jar_extlibs (mod: str):
+    zf = zipfile.ZipFile (f'.cache/extramods/{mod}')
+    try:
+        ef = zf.open('META-INF/external_libraries.json', 'r')
+        js = json.load (ef)
+        ef.close()
+        if not os.path.isdir ('extralibs'): os.mkdir ('extralibs')
+        for h in js: download_resource (js [h], h + '.jar', False, h, root='extralibs/')
+    except KeyError: pass
 
 # Parse extra mods
 def extramods (projectjson, properties):
@@ -362,6 +442,7 @@ def extramods (projectjson, properties):
     for mod in emods:
         url = emods [mod] .format (**properties)
         getfile (url, mod, f'.cache/extramods/{mod}')
+        jar_extlibs (mod)
 
 # Run Minecraft Client
 def run_client (projectjson, properties):
@@ -386,6 +467,7 @@ def run_client (projectjson, properties):
         artifact = lib ['downloads'] ['artifact']
         pth = f'{libroot}{artifact ["path"]}'
         cps.append (pth)
+    cps.append ('../client.jar')
     cps = os.pathsep.join (cps)
     mkrecursive ('.cache/natives')
     vars = {
@@ -411,17 +493,17 @@ def run_client (projectjson, properties):
         vars ['auth_player_name'] = auth ['name']
         vars ['auth_uuid'] = auth ['uuid']
     args = cljson ['arguments']
-    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps, '-Dberry.mcjar=../client.jar']
+    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps]
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
-            jvmargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
+            jvmargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
         else:
             rules = jvmarg ['rules']
             if check_rule (rules): jvmargs.append (jvmarg ['value'])
     gameargs = [cljson ['mainClass']]
     for gamearg in args ['game']:
         if isinstance (gamearg, str):
-            gameargs.append (re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: vars [m.group (1)], gamearg))
+            gameargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], gamearg))
     os.chdir ('.cache/game/')
     syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoader {" ".join (gameargs)}')
     os.chdir ('../../')

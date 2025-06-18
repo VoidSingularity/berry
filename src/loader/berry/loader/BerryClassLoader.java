@@ -81,6 +81,7 @@ public class BerryClassLoader extends SecureClassLoader {
 				if (Files.isDirectory(path)) {
 					manifest = ManifestUtil.readManifestFromBasePath(path);
 				} else {
+                    @SuppressWarnings ("deprecation")
 					URLConnection connection = new URL("jar:" + path.toUri().toString() + "!/").openConnection();
 
 					if (connection instanceof JarURLConnection) {

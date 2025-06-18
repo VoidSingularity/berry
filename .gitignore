@@ -11,3 +11,4 @@ dists/
 berry.iml
 auth.json
 dist.py.json
+*Generated.java

@@ -16,16 +16,25 @@
 package berry.loader;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
+import java.net.URL;
+import java.net.URLConnection;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.jar.JarFile;
 
 import berry.utils.StringSorter;
 
@@ -59,10 +68,72 @@ public final class BerryLoader {
         // but we want to search classes in our system cl
         return ClassLoader.getSystemClassLoader () .loadClass (name);
     }
-    private BerryLoader (String[] args) {
-        for (var str : System.getProperty ("berry.cps") .split (File.pathSeparator)) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (str);
-        indev = "true" .equals (System.getProperty ("berry.indev"));
+    private static void mktree (String tree) {
+        File t = new File (tree);
+        if (t.exists ()) return;
+        mktree (t.getParent ());
+        t.mkdir ();
+    }
+    private static String sha1 (InputStream stream) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance ("SHA-1");
+            byte[] buf = new byte [65536];
+            while (true) {
+                int len = stream.read (buf);
+                if (len <= 0) break;
+                digest.update (buf, 0, len);
+            }
+            stream.close ();
+            // To hex
+            StringBuilder builder = new StringBuilder (digest.getDigestLength () * 2);
+            for (byte b : digest.digest ()) {
+                String h = Integer.toHexString (0xff & b);
+                if (h.length () == 1) builder.append ('0');
+                builder.append (h);
+            }
+            return builder.toString ();
+        } catch (NoSuchAlgorithmException e) {
+            return "";
+        } catch (IOException e) {
+            throw new RuntimeException (e);
+        }
+    }
+    private static boolean sha1 (File f, String hash) {
+        try {
+            String h = sha1 (new FileInputStream (f));
+            if (h.isEmpty () || h.equals (hash)) return true;
+            else return false;
+        } catch (IOException e) {
+            return false;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+    public static void download (URL url, String local, String hash) throws IOException {
+        File fo = new File (local);
+        mktree (fo.getParent ());
         int i;
+        for (i=0; i<10; i++) {
+            if (sha1 (fo, hash)) return;
+            try {
+                URLConnection connection = url.openConnection ();
+                InputStream stream = connection.getInputStream ();
+                OutputStream fout = new FileOutputStream (fo);
+                byte[] buffer = new byte [65536];
+                int len;
+                while ((len = stream.read (buffer)) > 0) fout.write (buffer, 0, len);
+                stream.close (); fout.close ();
+            } catch (IOException e) {}
+        }
+        if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url.toString ()));
+    }
+    public static final Map <String, URL> libraries = new HashMap <> ();
+    private BerryLoader (String[] args) {
+        // Parse cps; the last one is minecraft jar
+        var cps = System.getProperty ("berry.cps") .split (File.pathSeparator);
+        int i; for (i=0; i<cps.length-1; i++) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (cps [i]);
+        System.setProperty ("berry.mcjar", cps [cps.length - 1]);
+        indev = "true" .equals (System.getProperty ("berry.indev"));
         String moddir = null;
         for (i=2; i<args.length; i++)
         if (args [i-1] .equals ("--gameDir")) {
@@ -119,6 +190,20 @@ public final class BerryLoader {
             catch (IllegalAccessException e) {}
             catch (Throwable throwable) {
                 throw new RuntimeException (throwable);
+            }
+        }
+        // Download libraries
+        String librt = getGameDirectory () + (isDevelopment () ? "../rt_extlibs/" : "extlibs/");
+        for (String sha : libraries.keySet ()) {
+            URL url = libraries.get (sha);
+            String local = librt + sha + ".jar";
+            try {
+                download (url, local, sha);
+                BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (local));
+            } catch (IOException e) {
+                System.err.println (String.format ("[BERRY] Error: unable to enable library from %s", url.toString ()));
+                e.printStackTrace ();
+                System.exit (1);
             }
         }
         for (String name : init.sort ()) {

@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import json, os, shutil, sys, zipfile
+import json, os, re, shutil, sys, zipfile
 
 pkgf = open ('project.json')
 jsonfile = json.load (pkgf)
@@ -69,6 +69,7 @@ def build (name, pkg):
     if cps is not None:
         for cp in cps:
             cp = os.path.expanduser (cp)
+            cp = re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: project.cp_replace (jsonfile, properties, m.group (1)), cp)
             if os.path.isdir (cp):
                 for l in lsrecursive (cp):
                     opt += f'{os.pathsep}{cp}{l}'

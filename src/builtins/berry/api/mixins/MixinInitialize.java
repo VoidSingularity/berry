@@ -54,4 +54,7 @@ public class MixinInitialize {
         graph.addEdge (null, vremap, vmixin, null);
         MixinExtrasBootstrap.init ();
     }
+    public static void addcfg () {
+        Mixins.addConfiguration ("builtin_mixins.json");
+    }
 }

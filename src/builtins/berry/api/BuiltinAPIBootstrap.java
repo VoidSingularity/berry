@@ -15,8 +15,6 @@
 
 package berry.api;
 
-import org.spongepowered.asm.mixin.Mixins;
-
 import berry.api.mixins.MixinInitialize;
 import berry.loader.BerryLoader;
 import berry.loader.BerryModInitializer;
@@ -32,14 +30,14 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
     public void preinit (StringSorter sorter, JarContainer jar, String name) {
         sorter.addValue (name);
         container = jar;
+        try { ExternalLibrariesGenerated.init (); }
+        catch (Exception e) { throw new RuntimeException (e); }
     }
     public void initialize (String[] argv) {
-        // Load bundled
-        BundledJar.addBundled (container);
         // Mixin bootstrap
         MixinInitialize.initialize ();
         // Minecraft transformer
         BerryLoader.preloaders.add (cl -> MinecraftJarTransformer.transform ());
-        BerryLoader.preloaders.add (cl -> Mixins.addConfiguration ("builtin_mixins.json"));
+        BerryLoader.preloaders.add (cl -> MixinInitialize.addcfg ());
     }
 }

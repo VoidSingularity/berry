@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.CodeSource;
 
+@SuppressWarnings ("deprecation")
 public final class UrlUtil {
 	public static final Path LOADER_CODE_SOURCE = getCodeSource(UrlUtil.class);
 
