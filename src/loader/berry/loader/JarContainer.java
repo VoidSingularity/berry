@@ -23,8 +23,13 @@ import java.util.jar.JarFile;
 
 public class JarContainer {
     private final JarFile file;
+    private final String fp;
     public JarContainer (File jarfile) throws IOException {
+        this.fp = jarfile.getAbsolutePath ();
         this.file = new JarFile (jarfile);
+    }
+    public String filepath () {
+        return this.fp;
     }
     public JarFile file () {
         return this.file;

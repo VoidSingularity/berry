@@ -24,13 +24,17 @@ import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
-import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
-import berry.loader.BerryClassTransformer;
+import berry.loader.BerryClassLoader;
 import berry.loader.BerryLoader;
 import berry.loader.JarContainer;
 
+/**
+ * Include bundled jars
+ * Use external libraries instead in most cases
+ */
+@Deprecated
 public class BundledJar {
     private static void mktree (String tree) {
         File t = new File (tree);
@@ -79,7 +83,7 @@ public class BundledJar {
             stream = new FileInputStream (target);
             String s2 = sha1 (stream); stream.close ();
             if (s1.equals (s2)) {
-                BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
+                BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (target.getAbsolutePath ());
                 return;
             }
         }
@@ -89,7 +93,7 @@ public class BundledJar {
         byte[] buffer = new byte [65536]; int len;
         while ((len = stream.read (buffer)) > 0) out.write (buffer, 0, len);
         out.close (); stream.close ();
-        BerryClassTransformer.instrumentation () .appendToSystemClassLoaderSearch (new JarFile (target));
+        BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (target.getAbsolutePath ());
     }
     public static void addBundled (JarContainer jar) {
         var file = jar.file ();
