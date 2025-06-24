@@ -64,7 +64,8 @@ def gfg (url: str, name: str, path: str):
 
 try:
     if '--offline' in sys.argv: raise FileNotFoundError ()
-    dist = json.load (open ('dist.py.json'))
+    dist = json.load (open ('localinfo.json'))
+    if 'dist_addr' not in dist or 'dist_pswd' not in dist: raise FileNotFoundError ()
     print ("Localdist enabled")
     # https://github.com/azure-bluet/dist.py
     class ServerConf:
@@ -80,7 +81,7 @@ try:
             data = f.read ()
             f.close ()
             self.src.write (self.pswd, {name: xmlrpc.client.Binary (data)})
-    conf = ServerConf (dist ['addr'], dist ['pswd'])
+    conf = ServerConf (dist ['dist_addr'], dist ['dist_pswd'])
     def getfile (url: str, name: str, path: str):
         try:
             conf.download (name, path)
@@ -488,10 +489,12 @@ def run_client (projectjson, properties):
         'version_type': 'Berry'
     }
     # Is that only for skin?
-    if os.path.isfile ('auth.json'):
-        auth = json.load (open ('auth.json'))
-        vars ['auth_player_name'] = auth ['name']
-        vars ['auth_uuid'] = auth ['uuid']
+    if os.path.isfile ('localinfo.json'):
+        auth = json.load (open ('localinfo.json'))
+        try:
+            vars ['auth_player_name'] = auth ['auth_name']
+            vars ['auth_uuid'] = auth ['auth_uuid']
+        except KeyError: pass
     args = cljson ['arguments']
     jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps]
     for jvmarg in args ['jvm']:

@@ -25,6 +25,9 @@ pkgf.close ()
 prof = open ('properties.json')
 properties = json.load (prof)
 prof.close ()
+java = ''
+try: java = json.load (open ('localinfo.json')) ['java']
+except Exception: pass
 
 if not os.path.exists ('build'): os.mkdir ('build')
 if not os.path.exists ('output'): os.mkdir ('output')
@@ -37,7 +40,7 @@ def syswrap (cmd):
 def javac (dn, opt):
     for fn in os.listdir (dn):
         if os.path.isfile (dn + fn):
-            syswrap (f'javac {opt} -d build {dn}{fn}')
+            syswrap (f'{java}javac {opt} -d build {dn}{fn}')
         else: javac (dn + fn + os.sep, opt)
 
 def clean_build ():
@@ -81,7 +84,7 @@ def build (name, pkg):
         if l.endswith ('.java'):
             lo.append (srcpth + l)
     shutil.rmtree ('build')
-    syswrap (f'javac {opt} -s {srcpth} -d build {" ".join (lo)}')
+    syswrap (f'{java}javac {opt} -s {srcpth} -d build {" ".join (lo)}')
     # Some sort of issue related to the jar command
     zip = zipfile.ZipFile (f'output/{name}.jar', 'w')
     for c in lsrecursive ('build/'):
