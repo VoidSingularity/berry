@@ -14,9 +14,7 @@ you have to configure java path yourself. Create a JSON file `localinfo.json`, t
 ```
 where `...` is your java's path, and the config value ends with `bin/`. `localinfo.json` also contains some other configurations.
 
-To setup the build environment, run `init.py`, this will automatically download the necessary buildscript templates.
-
-Then, to execute a task, run `build.py <task>`. For example,
+To execute a task, run `build.py <task>`. For example,
 run `build.py run_client` should launch Minecraft client after downloading mandatory assets and libraries.
 
 If you want to work on this project with Visual Studio Code, run `build.py setup_vscode`. If you are using Intellij IDEA, run `build.py setup_intellij`.
@@ -37,6 +35,8 @@ These two values are for [dist.py](https://github.com/azure-bluet/dist.py) confi
 [dist.py](https://github.com/azure-bluet/dist.py) allows you to share built resources
 between different mod workspaces without having to upload them publicly. This feature
 requires an accessible server (e.g. a local server accessible from LAN).
+If a `dist.py` environment is setup but you want to disable it temporarily, run
+`build.py xxxx --offline`.
 
 ## License and credits
 
@@ -44,6 +44,11 @@ requires an accessible server (e.g. a local server accessible from LAN).
 resources from Minecraft.**
 
 Files in this repository are licensed under the GNU Lesser General Public License, unless otherwise specified.
+
+The buildscript templates (`build.py` and `project_template.py`) are licensed under GNU General Public License. However,
+if you are using them for development, you do NOT have to publish your own mod under these terms, as the buildscripts do NOT
+exist at runtime/in production.
+Another template file `mapping.py` is licensed under MIT license.
 
 **Note:**
 some code comes from other places. See the copyright notice in those files for more info.
