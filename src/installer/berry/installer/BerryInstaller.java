@@ -291,8 +291,6 @@ public class BerryInstaller {
             "-m", "client.tsrg"
         });
         System.out.println ("Done.");
-        File mj = new File (curd + ".jar"); mj.delete ();
-        File oj = new File ("__tmp.jar"); oj.renameTo (mj);
         // Extract agent.jar and loader.jar
         String agentfile = extract_user ("agent.jar", "agents");
         String loaderfile = extract_user ("loader.jar", "loader");

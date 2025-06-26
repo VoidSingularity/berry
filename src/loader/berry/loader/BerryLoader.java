@@ -116,13 +116,19 @@ public final class BerryLoader {
             if (sha1 (fo, hash)) return;
             try {
                 URLConnection connection = url.openConnection ();
+                connection.setRequestProperty ("User-Agent", "BerryLoader"); // idk if it works lol
                 InputStream stream = connection.getInputStream ();
                 OutputStream fout = new FileOutputStream (fo);
                 byte[] buffer = new byte [65536];
                 int len;
                 while ((len = stream.read (buffer)) > 0) fout.write (buffer, 0, len);
                 stream.close (); fout.close ();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                System.err.print ("[BERRY] Failed to download file " + url.toString ());
+                if (i == 9) System.err.println (".");
+                else System.err.println (", trying again.");
+                e.printStackTrace ();
+            }
         }
         if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url.toString ()));
     }

@@ -30,6 +30,8 @@ public class MinecraftJarTransformer {
     public static Graph transformers = new Graph ();
     private static void transform (ZipFile file, ZipEntry entry, ZipOutputStream out) {
         try {
+            String name = entry.getName () .toLowerCase ();
+            if (name.endsWith (".rsa") || name.endsWith (".sf")) return;
             var is = file.getInputStream (entry);
             var all = is.readAllBytes ();
             is.close ();
