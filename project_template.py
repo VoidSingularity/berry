@@ -17,6 +17,7 @@ import hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.
 
 java = 'java'
 def setjava (newjava):
+    global java
     java = newjava + 'java'
 
 def syswrap (arg):
