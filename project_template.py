@@ -310,7 +310,7 @@ def parse_external_libraries (projectjson, properties):
 def getpaths ():
     return (
         ['.cache/client.jar', '.cache/server/server.jar'],
-        ['.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', '.cache/extlibs/', 'extralibs/', 'libs/', os.path.expanduser ('~/.berry/libraries/')]
+        ['.cache/bundled/', '.cache/berry/', '.cache/extramods/', 'runtime/', '.cache/extlibs/', 'extralibs/', 'libs/']
     )
 
 # Setup Intellij Workspace
@@ -318,7 +318,6 @@ def setup_intellij (projectjson, properties):
     f = open (os.getcwd () .strip (os.sep) .split (os.sep) [-1] + '.iml', 'w')
     f.write (
         '''
-        <?xml version="1.0" encoding="UTF-8"?>
         <module type="JAVA_MODULE" version="4">
         <component name="NewModuleRootManager" inherit-compiler-output="true">
         <exclude-output />
@@ -339,11 +338,24 @@ def setup_intellij (projectjson, properties):
     for i in p [0]:
         f.write (
             f'''
-            <orderEntry type="sourceFolder" forTests="false" />
             <orderEntry type="module-library">
             <library>
             <CLASSES>
             <root url="jar://$MODULE_DIR$/{i}!/" />
+            </CLASSES>
+            <JAVADOC />
+            <SOURCES />
+            </library>
+            </orderEntry>
+            '''
+        )
+    for i in get_libjars ():
+        f.write (
+            f'''
+            <orderEntry type="module-library">
+            <library>
+            <CLASSES>
+            <root url="jar://{i}!/" />
             </CLASSES>
             <JAVADOC />
             <SOURCES />
@@ -367,6 +379,7 @@ def setup_intellij (projectjson, properties):
             </orderEntry>
             '''
         )
+    f.write ('</component></module>')
     f.close ()
 
 # Setup VSCode Workspace
