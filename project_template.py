@@ -15,6 +15,10 @@
 
 import hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.request, xmlrpc.client, zipfile
 
+java = 'java'
+def setjava (newjava):
+    java = newjava + 'java'
+
 def syswrap (arg):
     if isinstance (arg, str): arg = arg.split ()
     print ('$', *arg)
@@ -153,12 +157,12 @@ def deobfuscate (projectjson, properties):
     mpdl = cljson ['downloads'] ['client_mappings']
     download_resource (mpdl ['url'], 'client.txt', True, mpdl ['sha1'])
     mapping.convert_mappings ('.cache/client.txt', '.cache/client.tsrg', True)
-    syswrap ('java -jar libs/specialsource.jar -i .cache/client_official.jar -o .cache/client.jar -m .cache/client.tsrg')
+    syswrap (f'{java} -jar libs/specialsource.jar -i .cache/client_official.jar -o .cache/client.jar -m .cache/client.tsrg')
     mpdl = cljson ['downloads'] ['server_mappings']
     download_resource (mpdl ['url'], 'server.txt', True, mpdl ['sha1'])
     mapping.convert_mappings ('.cache/server.txt', '.cache/server.tsrg', True)
     ver = properties ['minecraft_version']
-    syswrap (f'java -jar libs/specialsource.jar -i .cache/server/META-INF/versions/{ver}/server-{ver}.jar -o .cache/server/server.jar -m .cache/server.tsrg')
+    syswrap (f'{java} -jar libs/specialsource.jar -i .cache/server/META-INF/versions/{ver}/server-{ver}.jar -o .cache/server/server.jar -m .cache/server.tsrg')
 
 # Download dependencies
 def download_dependencies (projectjson, properties):
@@ -509,7 +513,7 @@ def run_client (projectjson, properties):
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], gamearg))
     os.chdir ('.cache/game/')
-    syswrap (['java'] + jvmargs + ['berry.loader.BerryLoader'] + gameargs)
+    syswrap ([java] + jvmargs + ['berry.loader.BerryLoader'] + gameargs)
     os.chdir ('../../')
 
 # Run Minecraft Server
@@ -531,7 +535,7 @@ def run_server (projectjson, properties):
     mc = open ('.cache/server/META-INF/main-class') .read () .strip ()
     os.chdir ('.cache/server/')
     syswrap ([
-        'java', '-javaagent:../berry/agent.jar', '-Dberry.side=SERVER', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader',
+        java, '-javaagent:../berry/agent.jar', '-Dberry.side=SERVER', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader',
         f'-Dberry.cps={os.pathsep.join (cps)}',
         '-cp', '../berry/loader.jar',
         'berry.loader.BerryLoader', mc, '--nogui'

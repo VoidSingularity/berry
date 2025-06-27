@@ -125,6 +125,7 @@ def build (name, pkg):
     built.add (name)
 
 import project
+project.setjava (java)
 try:
     stf = open ('.cache/status.json')
     status = set (json.load (stf))
