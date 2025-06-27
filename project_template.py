@@ -16,7 +16,7 @@
 import hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.request, xmlrpc.client, zipfile
 
 def syswrap (arg):
-    if isinstance (arg, str): arg = ' '.split (arg)
+    if isinstance (arg, str): arg = arg.split ()
     print ('$', *arg)
     subprocess.run (arg)
 
