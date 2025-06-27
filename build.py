@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import json, os, re, shutil, sys, zipfile
+import json, os, re, shutil, subprocess, sys, zipfile
 
 pkgf = open ('project.json')
 jsonfile = json.load (pkgf)
@@ -33,15 +33,15 @@ if not os.path.exists ('build'): os.mkdir ('build')
 if not os.path.exists ('output'): os.mkdir ('output')
 if not os.path.exists ('.cache'): os.mkdir ('.cache')
 
-def syswrap (cmd):
-    print ('$', cmd)
-    os.system (cmd)
+def syswrap (args):
+    print ('$', *args)
+    subprocess.run (args)
 
-def javac (dn, opt):
+def javac (dn, options):
     for fn in os.listdir (dn):
         if os.path.isfile (dn + fn):
-            syswrap (f'{java}javac {opt} -d build {dn}{fn}')
-        else: javac (dn + fn + os.sep, opt)
+            syswrap ([f'{java}javac'] + options + ['-d', 'build', f'{dn}{fn}'])
+        else: javac (dn+fn+os.sep, options)
 
 def clean_build ():
     if not os.path.isdir ('build'): return
@@ -64,10 +64,10 @@ def lsrecursive (root, d = ''):
 def build (name, pkg):
     if name in built: return
     deps = pkg.get ("dep")
-    opt = ' --class-path=./'
+    cpsopt = ['./']
     if deps is not None:
         for dep in deps:
-            if handle (dep): opt += f'{os.pathsep}output/{dep}.jar'
+            if handle (dep): cpsopt.append (f'output/{dep}.jar')
     cps = pkg.get ("cps")
     if cps is not None:
         for cp in cps:
@@ -75,8 +75,8 @@ def build (name, pkg):
             cp = re.sub ('\\$\\{([A-Za-z_]+)\\}', lambda m: project.cp_replace (jsonfile, properties, m.group (1)), cp)
             if os.path.isdir (cp):
                 for l in lsrecursive (cp):
-                    opt += f'{os.pathsep}{cp}{l}'
-            else: opt += f'{os.pathsep}{cp}'
+                    cpsopt.append (f'{cp}{l}')
+            else: cpsopt.append (cp)
     srcpth = f'src/{pkg ["source"]}/'
     lr = lsrecursive (srcpth)
     lo = []
@@ -84,7 +84,7 @@ def build (name, pkg):
         if l.endswith ('.java'):
             lo.append (srcpth + l)
     shutil.rmtree ('build')
-    syswrap (f'{java}javac {opt} -s {srcpth} -d build {" ".join (lo)}')
+    syswrap ([f'{java}javac', f'--class-path={os.pathsep.join (cpsopt)}', '-s', srcpth, '-d', 'build'] + lo)
     # Some sort of issue related to the jar command
     zip = zipfile.ZipFile (f'output/{name}.jar', 'w')
     for c in lsrecursive ('build/'):

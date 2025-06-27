@@ -13,11 +13,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import hashlib, json, os, platform, random, re, shutil, sys, urllib.request, xmlrpc.client, zipfile
+import hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.request, xmlrpc.client, zipfile
 
-def syswrap (cmd):
-    print ('$', cmd)
-    os.system (cmd)
+def syswrap (arg):
+    if isinstance (arg, str): arg = ' '.split (arg)
+    print ('$', *arg)
+    subprocess.run (arg)
 
 def fcopy (fin, fon):
     fi = open (fin, 'rb')
@@ -508,7 +509,7 @@ def run_client (projectjson, properties):
         if isinstance (gamearg, str):
             gameargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], gamearg))
     os.chdir ('.cache/game/')
-    syswrap (f'java {" ".join (jvmargs)} berry.loader.BerryLoader {" ".join (gameargs)}')
+    syswrap (['java'] + jvmargs + ['berry.loader.BerryLoader'] + gameargs)
     os.chdir ('../../')
 
 # Run Minecraft Server
@@ -529,12 +530,12 @@ def run_server (projectjson, properties):
     cps += ['server.jar']
     mc = open ('.cache/server/META-INF/main-class') .read () .strip ()
     os.chdir ('.cache/server/')
-    syswrap (
-        'java -javaagent:../berry/agent.jar -Dberry.side=SERVER -Dberry.indev=true -Djava.system.class.loader=berry.loader.BerryClassLoader'
-        f' -Dberry.cps={os.pathsep.join (cps)}'
-        f' -cp ../berry/loader.jar'
-        f' berry.loader.BerryLoader {mc} --nogui'
-    )
+    syswrap ([
+        'java', '-javaagent:../berry/agent.jar', '-Dberry.side=SERVER', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader',
+        f'-Dberry.cps={os.pathsep.join (cps)}',
+        '-cp', '../berry/loader.jar',
+        'berry.loader.BerryLoader', mc, '--nogui'
+    ])
     os.chdir ('../../')
 
 def build_resources (projectjson, properties):
