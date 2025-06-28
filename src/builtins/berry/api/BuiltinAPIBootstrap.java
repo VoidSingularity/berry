@@ -36,8 +36,6 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
     public void initialize (String[] argv) {
         // Mixin bootstrap
         MixinInitialize.initialize ();
-        // Minecraft transformer
-        BerryLoader.preloaders.add (cl -> MinecraftJarTransformer.transform ());
         BerryLoader.preloaders.add (cl -> MixinInitialize.addcfg ());
     }
 }

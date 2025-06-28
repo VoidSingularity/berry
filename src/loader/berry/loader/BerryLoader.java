@@ -136,7 +136,7 @@ public final class BerryLoader {
     private BerryLoader (String[] args) {
         // Parse cps; the last one is minecraft jar
         var cps = System.getProperty ("berry.cps") .split (File.pathSeparator);
-        int i; for (i=0; i<cps.length-1; i++) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (cps [i]);
+        int i; for (i=0; i<cps.length; i++) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (cps [i]);
         System.setProperty ("berry.mcjar", cps [cps.length - 1]);
         indev = "true" .equals (System.getProperty ("berry.indev"));
         String moddir = null;
