@@ -64,13 +64,13 @@
             "class": "berry.api.ExternalLibrariesGenerated"
         },
         "urls": [
-            "https://maven.fabricmc.net/net/fabricmc/sponge-mixin/0.15.4+mixin.0.8.7/sponge-mixin-0.15.4+mixin.0.8.7.jar",
-            "https://maven.fabricmc.net/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar",
-            "https://maven.fabricmc.net/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.jar",
-            "https://maven.fabricmc.net/org/ow2/asm/asm-tree/9.7.1/asm-tree-9.7.1.jar",
-            "https://maven.fabricmc.net/org/ow2/asm/asm-commons/9.7.1/asm-commons-9.7.1.jar",
-            "https://maven.fabricmc.net/org/ow2/asm/asm-util/9.7.1/asm-util-9.7.1.jar",
-            "https://repo1.maven.org/maven2/io/github/llamalad7/mixinextras-common/0.4.1/mixinextras-common-0.4.1.jar"
+            "net.fabricmc:sponge-mixin:0.15.4+mixin.0.8.7",
+            "org.ow2.asm:asm:9.7.1",
+            "org.ow2.asm:asm-analysis:9.7.1",
+            "org.ow2.asm:asm-tree:9.7.1",
+            "org.ow2.asm:asm-commons:9.7.1",
+            "org.ow2.asm:asm-util:9.7.1",
+            "io.github.llamalad7:mixinextras-common:0.4.1"
         ]
     },
     "runs": {

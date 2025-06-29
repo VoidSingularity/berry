@@ -31,7 +31,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.CodeSource;
 import java.security.cert.Certificate;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -122,7 +125,7 @@ public class BerryClassLoader extends URLClassLoader {
         super (new URL[0], parent);
         instance = this;
     }
-    private static record JarLocation (String path, JarFile jar) {}
+    public static record JarLocation (String path, JarFile jar) {}
     public void appendToClassPathForInstrumentation (String path) {
         try { super.addURL (new File (path) .toURI () .toURL ()); }
         catch (Exception e) {
@@ -130,12 +133,31 @@ public class BerryClassLoader extends URLClassLoader {
             return;
         }
     }
-    public URL toURL (String name, JarLocation loc) throws MalformedURLException {
-        var file = new File (loc.path);
+    public static URL toURL (String name, String jarpath) throws MalformedURLException {
+        var file = new File (jarpath);
         var url = file.toURI () .toURL () .toString ();
         var ret = URI.create ("jar:" + url + "!/" + name) .toURL ();
         return ret;
     }
+	private final Map <String, URL> controlled = new HashMap <> ();
+	public void controlResources (String resource, URL url) {
+		controlled.put (resource, url);
+	}
+	@Override
+	public Enumeration <URL> getResources (String name) throws IOException {
+		if (controlled.containsKey (name)) {
+			return new Enumeration <> () {
+				boolean flag = false;
+				public boolean hasMoreElements () { return !flag; }
+				public URL nextElement () {
+					if (flag) throw new NoSuchElementException ();
+					flag = true;
+					return controlled.get (name);
+				}
+			};
+		}
+		else return super.getResources (name);
+	}
     @Override
     public Class <?> findClass (String name) throws ClassNotFoundException {
         String rname = name.replace ('.', '/') + ".class";

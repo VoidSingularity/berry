@@ -16,7 +16,6 @@
 
 package berry.loader;
 
-@SuppressWarnings({ "serial" })
 public class UrlConversionException extends Exception {
 	public UrlConversionException() {
 		super();

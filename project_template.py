@@ -13,7 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.request, xmlrpc.client, zipfile
+import abc, hashlib, json, os, platform, random, re, shutil, subprocess, sys, urllib.request, xmlrpc.client, zipfile
 
 java = 'java'
 def setjava (newjava):
@@ -38,6 +38,55 @@ def verify_sha1 (local, sha1, root):
     while ct := lcl.read (65536):
         sha.update (ct)
     return sha.hexdigest () == sha1
+
+class JarProvider (abc.ABC):
+    @abc.abstractmethod
+    def binary (self) -> str: pass
+    @abc.abstractmethod
+    def source (self) -> str: pass
+
+class URLJarProvider (JarProvider):
+    def __init__ (self, url: str):self.url = self.literal = url
+    def binary (self): return self.url
+    def source (self): return self.url # Unused
+
+mavens = [ 'https://repo1.maven.org/maven2/'] # central?
+class MavenJarProvider (JarProvider):
+    def exist (url: str) -> bool:
+        req = urllib.request.Request (url)
+        req.add_header ('User-Agent', 'BerryBuild')
+        try: urllib.request.urlopen (req)
+        except urllib.error.HTTPError: return False
+        return True
+
+    def __init__ (self, artifact):
+        self.literal = artifact
+        splits = artifact.split (':')
+        if len (splits) != 3: raise Exception ('Maven artifact must be <group>:<artifact>:<version>')
+        group, arti, version = splits
+        suffix = f'{group.replace (".", "/")}/{arti}/{version}/'
+        # Detect all repos
+        valid = None
+        for maven in mavens:
+            url = maven + suffix
+            if MavenJarProvider.exist (url):
+                valid = url
+                break
+        if valid is None: raise Exception (f'{artifact} not found')
+        self.prefix = valid
+        self.artifact = arti
+        self.version = version
+    def binary (self): return f'{self.prefix}{self.artifact}-{self.version}.jar'
+    def source (self): return f'{self.prefix}{self.artifact}-{self.version}-sources.jar'
+# Parse maven repo from project.json
+proj = json.load (open ('project.json'))
+if 'repos' in proj: mavens += proj ['repos']
+
+def get_provider (obj: str | dict) -> JarProvider:
+    if isinstance (obj, str): # url or maven
+        if '/' in obj: return URLJarProvider (obj)
+        else: return MavenJarProvider (obj)
+    else: raise NotImplementedError
 
 def download_resource (url, local, reuse=True, sha1=None, retry=10, root='.cache/'):
     if os.path.exists (root + local) and reuse:
@@ -277,8 +326,10 @@ def parse_external_libraries (projectjson, properties):
     urm = {}
     for url in extlibs ['urls']:
         url = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], url)
-        r = ''.join ([random.choice (chli) for i in range (32)])
-        urm [r] = url
+        provider = get_provider (url)
+        r = ''.join ([random.choice (chli) for _ in range (32)])
+        urm [r] = provider
+        url = provider.binary ()
         print ('Downloading library from', url)
         download_resource (url, f'extlibs/{r}.jar', False)
     # Then, calculate hash
@@ -299,11 +350,11 @@ def parse_external_libraries (projectjson, properties):
         j.write (f'class {cls} {{\n')
         j.write ('    static void init() throws URISyntaxException, MalformedURLException {\n')
         for entry in lih:
-            j.write (f'        libraries.put("{entry [0]}", new URI("{entry [1]}").toURL());\n')
+            j.write (f'        libraries.put("{entry [0]}", new URI("{entry [1] .binary ()}").toURL());\n')
         j.write ('    }\n}\n')
     # For development: META-INF/external_libraries.json
     js = {}
-    for entry in lih: js [entry [0]] = entry [1]
+    for entry in lih: js [entry [0]] = entry [1] .literal
     with open ('.cache/external_libraries.json', 'w') as f:
         json.dump (js, f)
 
@@ -451,7 +502,9 @@ def jar_extlibs (mod: str):
         js = json.load (ef)
         ef.close()
         if not os.path.isdir ('extralibs'): os.mkdir ('extralibs')
-        for h in js: download_resource (js [h], h + '.jar', False, h, root='extralibs/')
+        for h in js:
+            provider = get_provider (js [h])
+            download_resource (provider.binary (), h + '.jar', False, h, root='extralibs/')
     except KeyError: pass
 
 # Parse extra mods
