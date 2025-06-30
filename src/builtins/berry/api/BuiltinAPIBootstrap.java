@@ -15,8 +15,10 @@
 
 package berry.api;
 
+import java.io.IOException;
 import java.util.List;
 
+import berry.api.asm.AccessTransformer;
 import berry.api.mixins.MixinInitialize;
 import berry.loader.BerryClassLoader;
 import berry.loader.BerryLoader;
@@ -54,5 +56,19 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
         // Mixin bootstrap
         MixinInitialize.initialize ();
         BerryLoader.preloaders.add (cl -> MixinInitialize.addcfg ());
+
+        // AT bootstrap
+        AccessTransformer.init ();
+        try {
+            var resources = this.getClass () .getClassLoader () .getResources ("META-INF/berry.at");
+            while (resources.hasMoreElements ()) {
+                var url = resources.nextElement ();
+                var stream = url.openStream ();
+                AccessTransformer.loadstream ("berry", stream);
+                stream.close ();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException (e);
+        }
     }
 }

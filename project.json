@@ -28,6 +28,10 @@
                     "destination": "builtin_mixins.json"
                 },
                 {
+                    "source": "manifest/berry.at",
+                    "destination": "META-INF/berry.at"
+                },
+                {
                     "source": ".cache/external_libraries.json",
                     "destination": "META-INF/external_libraries.json"
                 }

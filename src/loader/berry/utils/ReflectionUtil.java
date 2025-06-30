@@ -1,11 +1,27 @@
 package berry.utils;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 public class ReflectionUtil {
+    public static Class <?> silentForName (String name) {
+        try {
+            return Class.forName (name);
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+    public static Object instantiate (Class <?> clazz, Class<?>[] ptypes, Object... params) {
+        try {
+            Constructor <?> constructor = clazz.getConstructor (ptypes);
+            return constructor.newInstance (params);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
     public static Field getField (Class <?> source, String name) {
         Field f = null;
         for (Field g : source.getDeclaredFields ()) {
