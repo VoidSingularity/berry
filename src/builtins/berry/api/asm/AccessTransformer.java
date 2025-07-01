@@ -116,6 +116,9 @@ public class AccessTransformer {
     {
         var func = remappers.get (provider);
         if (func != null) line = func.apply (line);
+        if (line.contains ("#")) line = line.split ("#") [0];
+        line = line.strip ();
+        if (line.isEmpty ()) return;
         var splits = line.split (" ");
         if (splits.length < 2) return;
         Finality finality;
@@ -133,8 +136,7 @@ public class AccessTransformer {
     public static void loadstream (String provider, InputStream input) {
         Scanner scanner = new Scanner (input);
         while (scanner.hasNextLine ()) {
-            String line = scanner.nextLine () .strip ();
-            if (line.isEmpty () || line.startsWith ("#")) continue;
+            String line = scanner.nextLine ();
             loadline (line, provider);
         }
         scanner.close ();

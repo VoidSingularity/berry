@@ -139,23 +139,33 @@ public class BerryClassLoader extends URLClassLoader {
         var ret = URI.create ("jar:" + url + "!/" + name) .toURL ();
         return ret;
     }
-	private final Map <String, URL> controlled = new HashMap <> ();
+	private final Map <String, Enumeration <URL>> controlled = new HashMap <> ();
+	public static Enumeration <URL> single (URL url) {
+		return new Enumeration <> () {
+			boolean flag = false;
+			public boolean hasMoreElements () { return !flag; }
+			public URL nextElement () {
+				if (flag) throw new NoSuchElementException ();
+				flag = true;
+				return url;
+			}
+		};
+	}
+	public static Enumeration <URL> empty () {
+		return new Enumeration <> () {
+			public boolean hasMoreElements () { return false; }
+			public URL nextElement () { throw new NoSuchElementException (); }
+		};
+	}
+	public void controlResources (String resource, Enumeration <URL> urls) {
+		controlled.put (resource, urls);
+	}
 	public void controlResources (String resource, URL url) {
-		controlled.put (resource, url);
+		controlResources (resource, single (url));
 	}
 	@Override
 	public Enumeration <URL> getResources (String name) throws IOException {
-		if (controlled.containsKey (name)) {
-			return new Enumeration <> () {
-				boolean flag = false;
-				public boolean hasMoreElements () { return !flag; }
-				public URL nextElement () {
-					if (flag) throw new NoSuchElementException ();
-					flag = true;
-					return controlled.get (name);
-				}
-			};
-		}
+		if (controlled.containsKey (name)) return controlled.get (name);
 		else return super.getResources (name);
 	}
     @Override
