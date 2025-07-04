@@ -496,7 +496,6 @@ public class ClassFile {
     }
     public int newMethodDescriptor (TypedDescriptor descriptor) {
         int cd = newClassDescriptor (descriptor.type ()), nt = newNameAndType (descriptor.descriptor ());
-        // TODO: optimization
         Constant c = new Constant (descriptor.methtype (), new byte [4]);
         setShortToBytes (c.data, cd);
         setShortToBytes (c.data, nt, 2);

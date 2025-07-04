@@ -68,12 +68,12 @@
             "class": "berry.api.ExternalLibrariesGenerated"
         },
         "urls": [
-            "net.fabricmc:sponge-mixin:0.15.4+mixin.0.8.7",
-            "org.ow2.asm:asm:9.7.1",
-            "org.ow2.asm:asm-analysis:9.7.1",
-            "org.ow2.asm:asm-tree:9.7.1",
-            "org.ow2.asm:asm-commons:9.7.1",
-            "org.ow2.asm:asm-util:9.7.1",
+            "net.fabricmc:sponge-mixin:0.16.1+mixin.0.8.7",
+            "org.ow2.asm:asm:9.8",
+            "org.ow2.asm:asm-analysis:9.8",
+            "org.ow2.asm:asm-tree:9.8",
+            "org.ow2.asm:asm-commons:9.8",
+            "org.ow2.asm:asm-util:9.8",
             "io.github.llamalad7:mixinextras-common:0.4.1"
         ]
     },

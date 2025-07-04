@@ -168,6 +168,10 @@ public class BerryClassLoader extends URLClassLoader {
 		if (controlled.containsKey (name)) return controlled.get (name);
 		else return super.getResources (name);
 	}
+	// This method is convenient for debugging
+	protected Class <?> defineClass0 (String name, byte[] buf, CodeSource cs) {
+		return super.defineClass (name, buf, 0, buf.length, cs);
+	}
     @Override
     public Class <?> findClass (String name) throws ClassNotFoundException {
         String rname = name.replace ('.', '/') + ".class";
@@ -176,12 +180,12 @@ public class BerryClassLoader extends URLClassLoader {
             InputStream is = this.getResourceAsStream (rname);
             if (is != null) {
                 byte[] data = is.readAllBytes (); is.close ();
-                return defineClass (name, data, 0, data.length, getMetadata (name) .codeSource);
+                return defineClass0 (name, data, getMetadata (name) .codeSource);
             } else {
                 // generate code, i suppose
                 byte[] data = BerryClassTransformer.instance () .transform (this, name, null, null, null);
                 if (data != null)
-                return defineClass (name, data, 0, data.length);
+                return defineClass0 (name, data, null);
             }
         } catch (IOException e) {}
         throw new ClassNotFoundException (name);

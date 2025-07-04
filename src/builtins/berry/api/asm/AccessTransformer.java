@@ -2,22 +2,19 @@ package berry.api.asm;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.function.Function;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
 
 import berry.loader.BerryClassTransformer;
+import berry.loader.JarProcessor;
 import berry.loader.BerryClassTransformer.ByteCodeTransformer;
 import berry.utils.Graph;
 
-public class AccessTransformer {
+public class AccessTransformer implements JarProcessor {
     public static void init () {
         var graph = BerryClassTransformer.instance () .all.graph;
         ByteCodeTransformer transformer = (loader, name, clazz, domain, code) -> AccessTransformer.transform (name, code);
@@ -145,40 +142,28 @@ public class AccessTransformer {
         cls = cls.replace ('/', '.');
         var col = collections.get (cls);
         if (col != null) {
+            if (buf == null) System.err.println ("WTF? " + cls);
             ClassFile cf = new ClassFile (buf);
             col.apply (cf);
             return cf.get ();
         }
         return buf;
     }
-    // Tool
+    public EntryInfo process (EntryInfo orig) throws IOException {
+        if (orig.name () .endsWith (".class")) {
+            String name = orig.name () .split ("\\.") [0] .replace ('/', '.');
+            return new EntryInfo (orig.name (), transform (name, orig.data ()));
+        }
+        return orig;
+    }
+    // This method is for development use; neven run in-game
     // <AT file> <input jar> <output jar>
-    public static void main (String[] args) throws IOException {
+    public static void main (String... args) throws IOException {
         assert args.length == 3;
         File atf = new File (args [0]);
         InputStream stream = new FileInputStream (atf);
         loadstream ("berry", stream);
         stream.close ();
-        ZipFile in = new ZipFile (args [1]);
-        OutputStream os = new FileOutputStream (args [2]);
-        ZipOutputStream out = new ZipOutputStream (os);
-        in.entries () .asIterator () .forEachRemaining (
-            (entry) -> {
-                try {
-                    var is = in.getInputStream (entry);
-                    byte[] data = is.readAllBytes ();
-                    is.close ();
-                    if (entry.getName () .endsWith (".class")) {
-                        String name = entry.getName () .split ("\\.") [0] .replace ('/', '.');
-                        data = transform (name, data);
-                    }
-                    out.putNextEntry (entry);
-                    out.write (data);
-                } catch (IOException e) {
-                    throw new RuntimeException (e);
-                }
-            }
-        );
-        in.close (); out.close ();
+        JarProcessor.process (new AccessTransformer (), args [1], args [2]);
     }
 }

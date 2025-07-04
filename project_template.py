@@ -50,7 +50,7 @@ class URLJarProvider (JarProvider):
     def binary (self): return self.url
     def source (self): return self.url # Unused
 
-mavens = [ 'https://repo1.maven.org/maven2/'] # central?
+mavens = { 'central': 'https://repo1.maven.org/maven2/' } # central?
 class MavenJarProvider (JarProvider):
     def exist (url: str) -> bool:
         req = urllib.request.Request (url)
@@ -61,26 +61,47 @@ class MavenJarProvider (JarProvider):
 
     def __init__ (self, artifact):
         self.literal = artifact
+        fixed_repo = None
+        if artifact.startswith ('#'):
+            fixed_repo, artifact = artifact.split ()
+            fixed_repo = fixed_repo [1:]
         splits = artifact.split (':')
-        if len (splits) != 3: raise Exception ('Maven artifact must be <group>:<artifact>:<version>')
-        group, arti, version = splits
+        if len (splits) < 3 or len (splits) > 4: raise Exception ('Maven artifact must be <group>:<artifact>:<version>[:<variant>]')
+        if len (splits) == 3:
+            group, arti, version = splits
+            variant = None
+        else:
+            group, arti, version, variant = splits
         suffix = f'{group.replace (".", "/")}/{arti}/{version}/'
-        # Detect all repos
         valid = None
-        for maven in mavens:
+        if fixed_repo is None:
+            # Detect all repos
+            for k in mavens:
+                maven = mavens [k]
+                url = maven + suffix
+                if MavenJarProvider.exist (url):
+                    valid = url
+                    break
+        else:
+            maven = mavens [fixed_repo]
             url = maven + suffix
             if MavenJarProvider.exist (url):
                 valid = url
-                break
         if valid is None: raise Exception (f'{artifact} not found')
         self.prefix = valid
         self.artifact = arti
         self.version = version
-    def binary (self): return f'{self.prefix}{self.artifact}-{self.version}.jar'
-    def source (self): return f'{self.prefix}{self.artifact}-{self.version}-sources.jar'
+        self.variant = variant
+    def vary (self, variant):
+        if variant is None: return f'{self.prefix}{self.artifact}-{self.version}.jar'
+        else: return f'{self.prefix}{self.artifact}-{self.version}-{variant}.jar'
+    def binary (self): return self.vary (self.variant)
+    def source (self): return self.vary ('sources')
 # Parse maven repo from project.json
 proj = json.load (open ('project.json'))
-if 'repos' in proj: mavens += proj ['repos']
+if 'repos' in proj:
+    rps = proj ['repos']
+    for k in rps: mavens [k] = rps [k]
 
 def get_provider (obj: str | dict) -> JarProvider:
     if isinstance (obj, str): # url or maven
@@ -307,6 +328,7 @@ def download_bundled (projectjson, properties):
         proc = processors [ns]
         for i in li [ns]:
             i = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], i)
+            i = get_provider (i) .binary ()
             print ('Downloading from', i)
             download_resource (i, 'runtime/' + i.split ('/') [-1], False)
             proc (ns, i)
@@ -316,47 +338,46 @@ def download_bundled (projectjson, properties):
     f.close ()
 
 # Parse external libraries
-chli = [chr (i) for i in range (ord ('a'), ord ('z') + 1)]
+def external_library_parser (source='external_libraries', proc=lambda src, dst: os.rename (src, dst)):
+    def func (projectjson, properties):
+        extlibs = projectjson.get (source)
+        if extlibs is None: return
+        # Download them first
+        lih = []
+        for url in extlibs ['urls']:
+            url = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], url)
+            provider = get_provider (url)
+            url = provider.binary ()
+            print ('Downloading library from', url)
+            download_resource (url, f'__dl_tmp.jar', False)
+            # Calculate hash
+            with open (f'.cache/__dl_tmp.jar', 'rb') as f:
+                h = hashlib.sha1 (f.read ()) .hexdigest ()
+            lih.append ((h, provider))
+            # Process using `proc`
+            proc ('.cache/__dl_tmp.jar', f'.cache/extlibs/{h}.jar')
+        # Generate code
+        gen = extlibs ['generate']
+        with open (gen ['path'], 'w') as j:
+            cls: str = gen ['class']
+            pkg, cls = cls.rsplit ('.', 1)
+            j.write (f'package {pkg};\n\n')
+            j.write ('import berry.loader.ExternalLibraryCollection;\n')
+            j.write (f'public class {cls} extends ExternalLibraryCollection {{\n')
+            j.write (f'    public {cls}() {{\n')
+            for entry in lih:
+                j.write (f'        lib("{entry [0]}", "{entry [1] .binary ()}");\n')
+            j.write ('    }\n}\n')
+        # For development: META-INF/external_libraries.json
+        js = {}
+        for entry in lih: js [entry [0]] = entry [1] .literal
+        with open ('.cache/external_libraries.json', 'w') as f:
+            json.dump (js, f)
+    return func
 def parse_external_libraries (projectjson, properties):
     if os.path.exists ('.cache/extlibs'): shutil.rmtree ('.cache/extlibs')
     os.mkdir ('.cache/extlibs')
-    extlibs = projectjson.get ('external_libraries')
-    if extlibs is None: return
-    # Download them first
-    urm = {}
-    for url in extlibs ['urls']:
-        url = re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: properties [m.group (1)], url)
-        provider = get_provider (url)
-        r = ''.join ([random.choice (chli) for _ in range (32)])
-        urm [r] = provider
-        url = provider.binary ()
-        print ('Downloading library from', url)
-        download_resource (url, f'extlibs/{r}.jar', False)
-    # Then, calculate hash
-    lih = []
-    for r in urm:
-        with open (f'.cache/extlibs/{r}.jar', 'rb') as f:
-            h = hashlib.sha1 (f.read ()) .hexdigest ()
-        lih.append ((h, urm [r]))
-    # Generate code
-    gen = extlibs ['generate']
-    with open (gen ['path'], 'w') as j:
-        cls: str = gen ['class']
-        pkg, cls = cls.rsplit ('.', 1)
-        j.write (f'package {pkg};\n\n')
-        j.write ('import java.net.URI;\n')
-        j.write ('import java.net.MalformedURLException;\nimport java.net.URISyntaxException;\n\n')
-        j.write ('import static berry.loader.BerryLoader.libraries;\n\n')
-        j.write (f'class {cls} {{\n')
-        j.write ('    static void init() throws URISyntaxException, MalformedURLException {\n')
-        for entry in lih:
-            j.write (f'        libraries.put("{entry [0]}", new URI("{entry [1] .binary ()}").toURL());\n')
-        j.write ('    }\n}\n')
-    # For development: META-INF/external_libraries.json
-    js = {}
-    for entry in lih: js [entry [0]] = entry [1] .literal
-    with open ('.cache/external_libraries.json', 'w') as f:
-        json.dump (js, f)
+    external_library_parser () (projectjson, properties)
 
 def getpaths ():
     return (
@@ -504,7 +525,7 @@ def jar_extlibs (mod: str):
         if not os.path.isdir ('extralibs'): os.mkdir ('extralibs')
         for h in js:
             provider = get_provider (js [h])
-            download_resource (provider.binary (), h + '.jar', False, h, root='extralibs/')
+            download_resource (provider.binary (), h + '.jar', True, h, root='extralibs/')
     except KeyError: pass
 
 # Parse extra mods

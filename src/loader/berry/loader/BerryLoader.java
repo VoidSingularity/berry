@@ -115,6 +115,7 @@ public final class BerryLoader {
         for (i=0; i<10; i++) {
             if (sha1 (fo, hash)) return;
             try {
+                System.out.println ("[BERRY] Downloading " + url.toString ());
                 URLConnection connection = url.openConnection ();
                 connection.setRequestProperty ("User-Agent", "BerryLoader"); // idk if it works lol
                 InputStream stream = connection.getInputStream ();
@@ -202,12 +203,12 @@ public final class BerryLoader {
                 }
                 // Download libraries
                 String librt = getGameDirectory () + (isDevelopment () ? "../rt_extlibs/" : "extlibs/");
+                ExternalLibraryCollection.prefix = librt;
                 for (String sha : libraries.keySet ()) {
                     URL url = libraries.get (sha);
                     String local = librt + sha + ".jar";
                     try {
                         download (url, local, sha);
-                        BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (local);
                     } catch (IOException e) {
                         System.err.println (String.format ("[BERRY] Error: unable to enable library from %s", url.toString ()));
                         e.printStackTrace ();

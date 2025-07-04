@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.zip.ZipEntry;
 
@@ -67,7 +69,7 @@ public class BundledJar {
             return null;
         }
     }
-    public static void addBundled (String root, JarContainer mod, String path) throws IOException {
+    public static File addBundled (String root, JarContainer mod, String path) throws IOException {
         // A ZipEntry cannot be directly added, so we extract the bundled jars
         // Extract dir
         if (! root.endsWith (File.separator)) root += File.separator;
@@ -84,7 +86,7 @@ public class BundledJar {
             String s2 = sha1 (stream); stream.close ();
             if (s1.equals (s2)) {
                 BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (target.getAbsolutePath ());
-                return;
+                return target;
             }
         }
         // Now simply copy
@@ -94,22 +96,26 @@ public class BundledJar {
         while ((len = stream.read (buffer)) > 0) out.write (buffer, 0, len);
         out.close (); stream.close ();
         BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (target.getAbsolutePath ());
+        return target;
     }
-    public static void addBundled (JarContainer jar) {
+    public static List <File> addBundled (JarContainer jar) {
         var file = jar.file ();
         var entry = file.getEntry ("META-INF/bundled_jars");
         if (entry != null) {
             try (InputStream is = file.getInputStream (entry); Scanner scanner = new Scanner (is)) {
+                List <File> ret = new ArrayList <> ();
                 while (scanner.hasNextLine ()) {
                     String line = scanner.nextLine () .strip ();
                     if (line.isEmpty ()) continue;
                     if (line.startsWith ("#")) continue;
-                    BundledJar.addBundled (BerryLoader.getGameDirectory (), jar, line);
+                    ret.add (BundledJar.addBundled (BerryLoader.getGameDirectory (), jar, line));
                 }
+                return ret;
             } catch (IOException e) {
                 System.err.println ("[BERRY/BUILTIN] Unexpected failure while reading bundle info!");
                 e.printStackTrace ();
+                return null;
             }
-        }
+        } else return null;
     }
 }

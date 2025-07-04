@@ -23,11 +23,13 @@ import berry.api.mixins.MixinInitialize;
 import berry.loader.BerryClassLoader;
 import berry.loader.BerryLoader;
 import berry.loader.BerryModInitializer;
+import berry.loader.ExternalLibraryCollection;
 import berry.loader.JarContainer;
 import berry.utils.StringSorter;
 
 public class BuiltinAPIBootstrap implements BerryModInitializer {
     private static JarContainer container;
+    private static ExternalLibraryCollection elc;
     public static JarContainer getContainer () {
         return container;
     }
@@ -35,8 +37,7 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
     public void preinit (StringSorter sorter, JarContainer jar, String name) {
         sorter.addValue (name);
         container = jar;
-        try { ExternalLibrariesGenerated.init (); }
-        catch (Exception e) { throw new RuntimeException (e); }
+        elc = new ExternalLibrariesGenerated (); elc.initialize ();
     }
     private static final List <String> services = List.of (
         "org.spongepowered.asm.service.IGlobalPropertyService",
@@ -44,6 +45,9 @@ public class BuiltinAPIBootstrap implements BerryModInitializer {
         "org.spongepowered.asm.service.IMixinServiceBootstrap"
     );
     public void initialize (String[] argv) {
+        // Import ELC
+        elc.imports ();
+
         // Get URL for services
         try {
             for (var service : services)
