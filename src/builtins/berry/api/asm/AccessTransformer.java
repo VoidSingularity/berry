@@ -14,7 +14,7 @@ import berry.loader.JarProcessor;
 import berry.loader.BerryClassTransformer.ByteCodeTransformer;
 import berry.utils.Graph;
 
-public class AccessTransformer implements JarProcessor {
+public class AccessTransformer implements JarProcessor, ClassFileHandler {
     public static void init () {
         var graph = BerryClassTransformer.instance () .all.graph;
         ByteCodeTransformer transformer = (loader, name, clazz, domain, code) -> AccessTransformer.transform (name, code);
@@ -142,12 +142,16 @@ public class AccessTransformer implements JarProcessor {
         cls = cls.replace ('/', '.');
         var col = collections.get (cls);
         if (col != null) {
-            if (buf == null) System.err.println ("WTF? " + cls);
             ClassFile cf = new ClassFile (buf);
             col.apply (cf);
             return cf.get ();
         }
         return buf;
+    }
+    public void handle (ClassFile cf) {
+        var cls = cf.cls_name (cf.thisClass);
+        var col = collections.get (cls);
+        col.apply (cf);
     }
     public EntryInfo process (EntryInfo orig) throws IOException {
         if (orig.name () .endsWith (".class")) {

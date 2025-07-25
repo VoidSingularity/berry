@@ -397,8 +397,13 @@ def setup_intellij (projectjson, properties):
         <content url="file://$MODULE_DIR$">
         '''
     )
-    for name in projectjson ['packages']:
-        f.write (f'<sourceFolder url="file://$MODULE_DIR$/src/{name}" isTestSource="false" />')
+    if 'srcpaths' in projectjson:
+        s = projectjson ['srcpaths']
+    else:
+        s = []
+        for name in projectjson ['packages']: s.append ('src/%s/' % name)
+    for name in s:
+        f.write (f'<sourceFolder url="file://$MODULE_DIR$/{name}" isTestSource="false" />')
     f.write (
         '''
         </content>

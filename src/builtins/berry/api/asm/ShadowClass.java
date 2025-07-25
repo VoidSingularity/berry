@@ -1,12 +1,10 @@
 package berry.api.asm;
 
 import java.io.IOException;
-import java.security.ProtectionDomain;
 import java.util.Scanner;
 
 import berry.loader.JarProcessor;
-import berry.loader.BerryClassTransformer.ByteCodeTransformer;
-public class ShadowClass implements ByteCodeTransformer, JarProcessor {
+public class ShadowClass implements JarProcessor, ClassFileHandler {
     private final String oPrefix, nPrefix;
     private final String soPrefix, snPrefix;
     // Use a.b.C instead of a/b/C
@@ -16,14 +14,9 @@ public class ShadowClass implements ByteCodeTransformer, JarProcessor {
         soPrefix = oPrefix.replace ('.', '/');
         snPrefix = nPrefix.replace ('.', '/');
     }
-    public byte[] transform (String name, byte[] buf) throws IOException {
-        name = name.replace ('/', '.');
-        if (name.startsWith (nPrefix)) {
-            // Already transformed (probably in build stage)
-            return buf;
-        } else {
-            // Untransformed
-            ClassFile cf = new ClassFile (buf);
+    public void handle (ClassFile cf) {
+        String name = cf.cls_name (cf.thisClass);
+        if (!name.startsWith (snPrefix)) {
             for (var con : cf.constants) {
                 if (con != null && con.type == 1) {
                     String str = new String (con.data);
@@ -31,16 +24,12 @@ public class ShadowClass implements ByteCodeTransformer, JarProcessor {
                     con.data = str.getBytes ();
                 }
             }
-            return cf.get ();
         }
     }
-    public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
-        if (buffer == null) return buffer;
-        try {
-            return transform (name, buffer);
-        } catch (IOException e) {
-            return buffer;
-        }
+    public byte[] transform (String name, byte[] buf) throws IOException {
+        ClassFile cf = new ClassFile (buf);
+        handle (cf);
+        return cf.get ();
     }
     public EntryInfo process (EntryInfo orig) throws IOException {
         String name = orig.name ();

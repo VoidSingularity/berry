@@ -31,8 +31,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.CodeSource;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,13 +128,20 @@ public class BerryClassLoader extends URLClassLoader {
         instance = this;
     }
     public static record JarLocation (String path, JarFile jar) {}
+	private final List <String> paths = new ArrayList <> ();
     public void appendToClassPathForInstrumentation (String path) {
-        try { super.addURL (new File (path) .toURI () .toURL ()); }
+        try {
+			super.addURL (new File (path) .toURI () .toURL ());
+			paths.add (path);
+		}
         catch (Exception e) {
             e.printStackTrace();
             return;
         }
     }
+	public List <String> getPaths () {
+		return List.copyOf (paths);
+	}
     public static URL toURL (String name, String jarpath) throws MalformedURLException {
         var file = new File (jarpath);
         var url = file.toURI () .toURL () .toString ();

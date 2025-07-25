@@ -57,7 +57,7 @@ public class ReflectionUtil {
         }
         return null;
     }
-    public static Type[] getGenerics (Class <?> source) {
+    public static Type[] getGenericsSuper (Class <?> source) {
         Type type = source.getGenericSuperclass ();
         if (type instanceof ParameterizedType ptype) return ptype.getActualTypeArguments ();
         return null;

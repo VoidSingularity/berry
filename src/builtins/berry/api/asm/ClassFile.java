@@ -34,6 +34,10 @@ public class ClassFile {
     }
     public Stack <Constant> constants;
     public int accessFlags, thisClass, superClass;
+    public String cls_name (int idx) {
+        idx = getShortFromBytes (constants.get (idx) .data);
+        return ifStr (idx);
+    }
     public int[] interfaces;
     public static record ExceptionTable (int start, int end, int handler, int catchType) {
         public static ExceptionTable read (DataInputStream stream) throws IOException {
