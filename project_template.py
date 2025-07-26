@@ -551,7 +551,10 @@ def run_client (projectjson, properties):
         for fn in os.listdir ('.cache/extramods'):
             fcopy (f'.cache/extramods/{fn}', f'.cache/game/mods/{fn}')
     mn = projectjson ['output_mod']
-    fcopy (f'output/{mn}.jar', f'.cache/game/mods/{mn}.jar')
+    if isinstance (mn, list):
+        for mod in mn:
+            fcopy (f'output/{mod}.jar', f'.cache/game/mods/{mod}.jar')
+    else: fcopy (f'output/{mn}.jar', f'.cache/game/mods/{mn}.jar')
     cl = open ('.cache/client.json')
     cljson = json.load (cl)
     cl.close ()
@@ -618,7 +621,10 @@ def run_server (projectjson, properties):
         for fn in os.listdir ('.cache/extramods'):
             fcopy (f'.cache/extramods/{fn}', f'.cache/server/mods/{fn}')
     mn = projectjson ['output_mod']
-    fcopy (f'output/{mn}.jar', f'.cache/server/mods/{mn}.jar')
+    if isinstance (mn, list):
+        for mod in mn:
+            fcopy (f'output/{mod}.jar', f'.cache/server/mods/{mod}.jar')
+    else: fcopy (f'output/{mn}.jar', f'.cache/server/mods/{mn}.jar')
     cps = open ('.cache/server/META-INF/classpath-joined') .read () .strip () .split (';')
     for i in range (len (cps)):
         if cps [i] .split ('/') [-1] .startswith ('asm'):
