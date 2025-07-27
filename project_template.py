@@ -28,7 +28,7 @@ def syswrap (arg):
     try:
         subprocess.run (arg)
     except Exception as e:
-        print e
+        print (e)
 
 def fcopy (fin, fon):
     fi = open (fin, 'rb')
