@@ -19,11 +19,16 @@ java = 'java'
 def setjava (newjava):
     global java
     java = newjava + 'java'
+def getjava ():
+    return java
 
 def syswrap (arg):
     if isinstance (arg, str): arg = arg.split ()
     print ('$', *arg)
-    subprocess.run (arg)
+    try:
+        subprocess.run (arg)
+    except Exception as e:
+        print e
 
 def fcopy (fin, fon):
     fi = open (fin, 'rb')
@@ -217,6 +222,7 @@ def download_minecraft (projectjson, properties):
     # We don't even NEED net.minecraft.bundler
     # Also we can't read it anyway xd
     shutil.rmtree ('.cache/server/net')
+    if os.path.exists ('.cache/server/libraries'): shutil.rmtree ('.cache/server/libraries')
     os.rename ('.cache/server/META-INF/libraries', '.cache/server/libraries')
 
 # Deobfuscate Minecraft
