@@ -72,11 +72,8 @@ public class BerryInstaller {
     private static boolean sha1 (File f, String hash) {
         try {
             String h = sha1 (new FileInputStream (f));
-            if (h.isEmpty () || h.equals (hash)) return true;
-            else return false;
-        } catch (IOException e) {
-            return false;
-        } catch (RuntimeException e) {
+            return h.isEmpty() || h.equals(hash);
+        } catch (IOException | RuntimeException e) {
             return false;
         }
     }
@@ -98,7 +95,7 @@ public class BerryInstaller {
                 try { dunsafe (url, local, fo); return; }
                 catch (IOException e) {}
             }
-            throw new IOException (String.format ("Cannot download file %s", url.toString ()));
+            throw new IOException (String.format ("Cannot download file %s", url));
         }
         int i;
         for (i=0; i<10; i++) {
@@ -113,7 +110,7 @@ public class BerryInstaller {
                 stream.close (); fout.close ();
             } catch (IOException e) {}
         }
-        if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url.toString ()));
+        if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url));
     }
     private static String remapFilePath (String path) {
         switch (path) {
@@ -291,12 +288,9 @@ public class BerryInstaller {
             "-m", "client.tsrg"
         });
         System.out.println ("Done.");
-        // Extract agent.jar and loader.jar
-        String agentfile = extract_user ("agent.jar", "agents");
+        // Extract loader.jar
         String loaderfile = extract_user ("loader.jar", "loader");
         var jvma = jsin.getJSONObject ("arguments") .getJSONArray ("jvm");
-        // Add agent to JVM args
-        jvma.put ("-javaagent:" + agentfile);
         // Modify classpath to loaderfile
         int i;
         for (i=0; i<jvma.length(); i++) {
@@ -309,8 +303,6 @@ public class BerryInstaller {
         }
         // And the new classpath:
         jvma.put ("-Dberry.cps=${classpath}");
-        // class loader
-        jvma.put ("-Djava.system.class.loader=berry.loader.BerryClassLoader");
         // Mojang ships ASM 9.3, but we need higher versions.
         JSONArray arr = jsin.getJSONArray ("libraries");
         for (i=0; i<arr.length(); i++) {
@@ -323,8 +315,7 @@ public class BerryInstaller {
         String mclass = jsin.getString ("mainClass");
         jsin.put ("mainClass", "berry.loader.BerryLoader");
         arr = new JSONArray () .put (mclass);
-        for (var o : jsin.getJSONObject ("arguments") .getJSONArray ("game"))
-        arr.put (o);
+        for (var o : jsin.getJSONObject ("arguments") .getJSONArray ("game")) arr.put (o);
         jsin.getJSONObject ("arguments") .put ("game", arr);
         // Save changes
         OutputStream os = new FileOutputStream (curd + ".json");

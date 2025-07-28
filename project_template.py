@@ -507,7 +507,7 @@ def setup_berry (projectjson, properties):
     bv = properties.get ('berry_version')
     mkrecursive ('.cache/berry')
     if bv is not None:
-        li = ['agent', 'loader', 'builtins']
+        li = ['loader', 'builtins']
         for l in li:
             name = l + '.jar'
             url = properties ['berry_repo'] .format (version=bv, jarname=l)
@@ -522,9 +522,7 @@ def setup_berry (projectjson, properties):
         jar_extlibs ('builtins.jar')
     else:
         if os.path.exists ('.cache/berry/loader.jar'): os.remove ('.cache/berry/loader.jar')
-        if os.path.exists ('.cache/berry/agent.jar'): os.remove ('.cache/berry/agent.jar')
         os.rename ('output/loader.jar', '.cache/berry/loader.jar')
-        os.rename ('output/agent.jar', '.cache/berry/agent.jar')
 
 # Parse external libraries from jar mods
 def jar_extlibs (mod: str):
@@ -603,7 +601,7 @@ def run_client (projectjson, properties):
             vars ['auth_uuid'] = auth ['auth_uuid']
         except KeyError: pass
     args = cljson ['arguments']
-    jvmargs = ['-javaagent:../berry/agent.jar', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader', '-Dberry.cps='+cps]
+    jvmargs = ['-Dberry.indev=true', '-Dberry.cps='+cps]
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
             jvmargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
@@ -640,7 +638,7 @@ def run_server (projectjson, properties):
     mc = open ('.cache/server/META-INF/main-class') .read () .strip ()
     os.chdir ('.cache/server/')
     syswrap ([
-        java, '-javaagent:../berry/agent.jar', '-Dberry.side=SERVER', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader',
+        java, '-Dberry.side=SERVER', '-Dberry.indev=true',
         f'-Dberry.cps={os.pathsep.join (cps)}',
         '-cp', '../berry/loader.jar',
         'berry.loader.BerryLoader', mc, '--nogui'

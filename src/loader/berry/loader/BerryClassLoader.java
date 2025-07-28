@@ -30,13 +30,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.CodeSource;
+import java.security.Permissions;
+import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -106,11 +103,7 @@ public class BerryClassLoader extends URLClassLoader {
 						}
 					}
 				}
-			} catch (IOException | FileSystemNotFoundException e) {
-				if (BerryLoader.isDevelopment()) {
-					// Log.warn(LogCategory.KNOT, "Failed to load manifest", e);
-				}
-			}
+			} catch (IOException | FileSystemNotFoundException e) {}
 
 			if (cs == null) {
 				try {
@@ -125,9 +118,9 @@ public class BerryClassLoader extends URLClassLoader {
 	}
     public BerryClassLoader (ClassLoader parent) {
         super (new URL[0], parent);
+		new BerryClassTransformer ();
         instance = this;
     }
-    public static record JarLocation (String path, JarFile jar) {}
 	private final List <String> paths = new ArrayList <> ();
     public void appendToClassPathForInstrumentation (String path) {
         try {
@@ -183,20 +176,25 @@ public class BerryClassLoader extends URLClassLoader {
 	}
     @Override
     public Class <?> findClass (String name) throws ClassNotFoundException {
-        String rname = name.replace ('.', '/') + ".class";
+		String iname = name.replace ('.', '/');
+        String rname = iname + ".class";
         // Get resource
         try {
             InputStream is = this.getResourceAsStream (rname);
             if (is != null) {
                 byte[] data = is.readAllBytes (); is.close ();
+				data = BerryClassTransformer.instance () .transform (this, iname, null, new ProtectionDomain (getMetadata (name) .codeSource, new Permissions ()), data);
                 return defineClass0 (name, data, getMetadata (name) .codeSource);
             } else {
                 // generate code, i suppose
-                byte[] data = BerryClassTransformer.instance () .transform (this, name, null, null, null);
+                byte[] data = BerryClassTransformer.instance () .transform (this, iname, null, null, null);
                 if (data != null)
-                return defineClass0 (name, data, null);
+                	return defineClass0 (name, data, null);
             }
-        } catch (IOException e) {}
+        } catch (IOException e) {
+			System.err.printf ("Error during findClass(%s)", name);
+			e.printStackTrace ();
+		}
         throw new ClassNotFoundException (name);
     }
     static {

@@ -17,7 +17,6 @@ package berry.loader;
 
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
-import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,8 +26,8 @@ import java.util.Set;
 import berry.utils.Graph;
 
 public class BerryClassTransformer implements ClassFileTransformer {
-    public static interface ByteCodeTransformer {
-        public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] code) throws IOException;
+    public interface ByteCodeTransformer {
+        byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] code) throws IOException;
     }
     public static class GraphTransformer implements ByteCodeTransformer {
         public final Graph graph = new Graph ();
@@ -39,7 +38,7 @@ public class BerryClassTransformer implements ClassFileTransformer {
                     byte[] next = con.transform (loader, name, clazz, domain, buffer);
                     if (next != null) buffer = next;
                 } catch (IOException e) {
-                    System.err.println (String.format ("[JA] Failed to remap class %s using %s", name, consumer.getClass () .getName ()));
+                    System.err.printf ("[JA] Failed to remap class %s using %s%n", name, consumer.getClass () .getName ());
                 }
             }
             return buffer;
@@ -58,14 +57,8 @@ public class BerryClassTransformer implements ClassFileTransformer {
     public static BerryClassTransformer instance () {
         return instance;
     }
-    // Instrumentation
-    private final Instrumentation inst;
-    public static Instrumentation instrumentation () {
-        return instance.inst;
-    }
-    public BerryClassTransformer (Instrumentation inst) {
+    public BerryClassTransformer () {
         instance = this;
-        this.inst = inst;
         var vremap = new Graph.Vertex ("berry::remap", this.remapper);
         this.all.graph.addVertex (vremap);
         ByteCodeTransformer moni = (loader, name, clazz, domain, buffer) -> {
@@ -77,11 +70,17 @@ public class BerryClassTransformer implements ClassFileTransformer {
         this.all.graph.addEdge (null, vremap, vmonitor, null);
     }
     public final Set <String> trans_blacklist = new HashSet <> ();
+    public static final Set <String> blacklist_prefix = new HashSet <> ();
+    static {
+        blacklist_prefix.addAll (Set.of ("java", "jdk", "sun", "berry/utils/"));
+    }
     public byte[] transform (ClassLoader loader, String name, Class <?> clazz, ProtectionDomain domain, byte[] buffer) {
         // DO NOT TRANSFORM THESE!
-        if (name.startsWith ("java") || name.startsWith ("jdk") || name.startsWith ("sun")) return null;
+        if (name.startsWith ("java") || name.startsWith ("jdk") || name.startsWith ("sun")) return buffer;
         // THEY SHOULD NOT BE TRANSFORMED!
-        if (name.startsWith ("berry/utils")) return null;
+        for (var prefix : blacklist_prefix)
+            if (name.startsWith (prefix))
+                return buffer;
         // Blacklist. Do not transform them.
         if (trans_blacklist.contains (name)) {
             trans_blacklist.remove (name);

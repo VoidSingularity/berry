@@ -56,12 +56,14 @@ public final class BerryLoader {
         for (var pl : preloaders) pl.accept (cl);
     }
 
-    public static void main (String[] args) {
-        String s = System.getProperty ("berry.side");
-        side = s == null ? "CLIENT" /* defaults to CLIENT */ : s;
-        new BerryLoader (args);
+    public static void main (String[] args) throws ReflectiveOperationException {
+        var cl = new BerryClassLoader (ClassLoader.getSystemClassLoader ());
+        Thread.currentThread () .setContextClassLoader (cl);
+        var cls = cl.loadClass ("berry.loader.BerryLoader");
+        var ctor = cls.getConstructor (String[].class);
+        ctor.newInstance ((Object) args);
     }
-    private static record JarStringInfo (JarContainer jar, String info, String name) {}
+    private record JarStringInfo (JarContainer jar, String info, String name) {}
     private static Class <?> forname (String name) throws ClassNotFoundException {
         // berry.loader.BerryLoader is loaded by app cl,
         // but we want to search classes in our cl
@@ -100,11 +102,8 @@ public final class BerryLoader {
     private static boolean sha1 (File f, String hash) {
         try {
             String h = sha1 (new FileInputStream (f));
-            if (h.isEmpty () || h.equals (hash)) return true;
-            else return false;
-        } catch (IOException e) {
-            return false;
-        } catch (RuntimeException e) {
+            return h.isEmpty() || h.equals(hash);
+        } catch (IOException | RuntimeException e) {
             return false;
         }
     }
@@ -134,19 +133,22 @@ public final class BerryLoader {
         if (sha1 (fo, hash) == false) throw new IOException (String.format ("Cannot download file %s", url.toString ()));
     }
     public static final Map <String, URL> libraries = new HashMap <> ();
-    private BerryLoader (String[] args) {
+    public BerryLoader (String[] args) {
+        String sd = System.getProperty ("berry.side");
+        side = sd == null ? "CLIENT" /* defaults to CLIENT */ : sd;
         // Parse cps; the last one is minecraft jar
         var cps = System.getProperty ("berry.cps") .split (File.pathSeparator);
         int i; for (i=0; i<cps.length; i++) BerryClassLoader.getInstance () .appendToClassPathForInstrumentation (cps [i]);
         System.setProperty ("berry.mcjar", cps [cps.length - 1]);
         indev = "true" .equals (System.getProperty ("berry.indev"));
         String moddir = null;
-        for (i=2; i<args.length; i++)
-        if (args [i-1] .equals ("--gameDir")) {
-            String s = args [i];
-            if (!s.endsWith (File.separator)) s += File.separator;
-            gamdir = s;
-            moddir = s + "mods" + File.separator;
+        for (i=2; i<args.length; i++) {
+            if (args [i-1] .equals ("--gameDir")) {
+                String s = args [i];
+                if (!s.endsWith (File.separator)) s += File.separator;
+                gamdir = s;
+                moddir = s + "mods" + File.separator;
+            }
         }
         if (gamdir == null) gamdir = "./";
         if (moddir == null) moddir = "./mods/";
@@ -242,6 +244,7 @@ public final class BerryLoader {
             },
             "Minecraft Thread"
         );
+        thread.setContextClassLoader (BerryClassLoader.getInstance ());
         thread.start ();
     }
 }

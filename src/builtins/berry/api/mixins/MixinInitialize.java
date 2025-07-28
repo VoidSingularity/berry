@@ -37,12 +37,14 @@ public class MixinInitialize {
 		} catch (Exception e) {
 			throw new RuntimeException (e);
 		}
+        BerryClassTransformer.blacklist_prefix.add ("org/objectweb/asm/");
         BerryClassTransformer.ByteCodeTransformer transformer = (loader, name, clazz, domain, code) -> {
             try {
                 name = name.replace ('/', '.');
+                if (name.startsWith ("org.spongepowered.") &&! name.startsWith ("org.spongepowered.asm.synthetic")) return code;
                 return BerryMixinService.transformer.transformClassBytes (name, name, code);
             } catch (Throwable t) {
-                System.err.println (String.format ("[BERRY/MIXIN] Error transforming class %s", name));
+                System.err.printf ("[BERRY/MIXIN] Error transforming class %s%n", name);
                 t.printStackTrace ();
                 return null;
             }
