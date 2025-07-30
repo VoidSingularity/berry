@@ -57,9 +57,10 @@ public final class BerryLoader {
     }
 
     public static void main (String[] args) throws ReflectiveOperationException {
-        var cl = new BerryClassLoader (ClassLoader.getSystemClassLoader ());
+        BerryClassLoader cl = BerryClassLoader.getInstance ();
+        if (cl == null) cl = new BerryClassLoader (ClassLoader.getSystemClassLoader ());
         Thread.currentThread () .setContextClassLoader (cl);
-        var cls = cl.loadClass ("berry.loader.BerryLoader");
+        var cls = cl.loadClass (BerryLoader.class.getName ());
         var ctor = cls.getConstructor (String[].class);
         ctor.newInstance ((Object) args);
     }

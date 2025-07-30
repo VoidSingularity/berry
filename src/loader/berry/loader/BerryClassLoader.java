@@ -35,11 +35,11 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.jar.JarFile;
+import java.util.function.Function;
 import java.util.jar.Manifest;
 
 public class BerryClassLoader extends URLClassLoader {
-    private static BerryClassLoader instance;
+    private static BerryClassLoader instance = null;
     public static BerryClassLoader getInstance () {
         return instance;
     }
@@ -165,10 +165,19 @@ public class BerryClassLoader extends URLClassLoader {
 	public void controlResources (String resource, URL url) {
 		controlResources (resource, single (url));
 	}
+	private final Map <String, Function <InputStream, InputStream>> controlled_streams = new HashMap <> ();
+	public void controlResourceStream (String resource, Function <InputStream, InputStream> stream) {
+		controlled_streams.put (resource, stream);
+	}
 	@Override
 	public Enumeration <URL> getResources (String name) throws IOException {
 		if (controlled.containsKey (name)) return controlled.get (name);
 		else return super.getResources (name);
+	}
+	@Override
+	public InputStream getResourceAsStream (String name) {
+		if (controlled_streams.containsKey (name)) return controlled_streams.get (name) .apply (super.getResourceAsStream (name));
+		else return super.getResourceAsStream (name);
 	}
 	// This method is convenient for debugging
 	protected Class <?> defineClass0 (String name, byte[] buf, CodeSource cs) {

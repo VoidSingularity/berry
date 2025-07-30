@@ -360,6 +360,9 @@ def external_library_parser (source='external_libraries', proc=lambda src, dst: 
             with open (f'.cache/__dl_tmp.jar', 'rb') as f:
                 h = hashlib.sha1 (f.read ()) .hexdigest ()
             lih.append ((h, provider))
+            # Copy to rt_extlibs for dev convenience
+            if not os.path.exists ('.cache/rt_extlibs'): os.mkdir ('.cache/rt_extlibs')
+            fcopy ('.cache/__dl_tmp.jar', f'.cache/rt_extlibs/{h}.jar')
             # Process using `proc`
             proc ('.cache/__dl_tmp.jar', f'.cache/extlibs/{h}.jar')
         # Generate code
@@ -601,7 +604,7 @@ def run_client (projectjson, properties):
             vars ['auth_uuid'] = auth ['auth_uuid']
         except KeyError: pass
     args = cljson ['arguments']
-    jvmargs = ['-Dberry.indev=true', '-Dberry.cps='+cps]
+    jvmargs = ['-Dberry.indev=true', '-Dberry.cps='+cps, '-Djava.system.class.loader=berry.loader.BerryClassLoader']
     for jvmarg in args ['jvm']:
         if isinstance (jvmarg, str):
             jvmargs.append (re.sub ('\\$\\{([A-Za-z0-9_]+)\\}', lambda m: vars [m.group (1)], jvmarg))
@@ -638,7 +641,7 @@ def run_server (projectjson, properties):
     mc = open ('.cache/server/META-INF/main-class') .read () .strip ()
     os.chdir ('.cache/server/')
     syswrap ([
-        java, '-Dberry.side=SERVER', '-Dberry.indev=true',
+        java, '-Dberry.side=SERVER', '-Dberry.indev=true', '-Djava.system.class.loader=berry.loader.BerryClassLoader',
         f'-Dberry.cps={os.pathsep.join (cps)}',
         '-cp', '../berry/loader.jar',
         'berry.loader.BerryLoader', mc, '--nogui'

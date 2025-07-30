@@ -23,14 +23,12 @@ public class ReflectionUtil {
         }
     }
     public static Field getField (Class <?> source, String name) {
-        Field f = null;
-        for (Field g : source.getDeclaredFields ()) {
-            if (g.getName () .equals (name)) {
-                f = g;
-                break;
-            }
+        Field f;
+        try {
+            f = source.getDeclaredField (name);
+        } catch (NoSuchFieldException e) {
+            return null;
         }
-        if (f == null) return null;
         f.setAccessible (true);
         return f;
     }
@@ -38,7 +36,7 @@ public class ReflectionUtil {
         try {
             Field f = getField (source, name);
             return f.get (obj);
-        } catch (ReflectiveOperationException e) {
+        } catch (ReflectiveOperationException | NullPointerException e) {
             return null;
         }
     }
