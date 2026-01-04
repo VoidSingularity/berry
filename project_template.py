@@ -78,25 +78,25 @@ class MavenJarProvider (JarProvider):
         else:
             group, arti, version, variant = splits
         suffix = f'{group.replace (".", "/")}/{arti}/{version}/'
+        self.artifact = arti
+        self.version = version
+        self.variant = variant
         valid = None
         if fixed_repo is None:
             # Detect all repos
             for k in mavens:
                 maven = mavens [k]
                 url = maven + suffix
-                if MavenJarProvider.exist (url):
+                self.prefix = url
+                if MavenJarProvider.exist (self.vary (self.variant)):
                     valid = url
                     break
         else:
             maven = mavens [fixed_repo]
             url = maven + suffix
-            if MavenJarProvider.exist (url):
+            if MavenJarProvider.exist (self.vary (self.variant)):
                 valid = url
         if valid is None: raise Exception (f'{artifact} not found')
-        self.prefix = valid
-        self.artifact = arti
-        self.version = version
-        self.variant = variant
     def vary (self, variant):
         if variant is None: return f'{self.prefix}{self.artifact}-{self.version}.jar'
         else: return f'{self.prefix}{self.artifact}-{self.version}-{variant}.jar'
