@@ -77,4 +77,9 @@ public class ReflectionUtil {
         if (type instanceof ParameterizedType ptype) return ptype.getActualTypeArguments();
         return null;
     }
+
+    public static String getInternalName(Class<?> clazz) {
+        // I don't know if this actually works for all situations? But it's enough for now, hopefully...
+        return clazz.getName().replace('.', '/');
+    }
 }
